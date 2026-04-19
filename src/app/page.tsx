@@ -82,7 +82,6 @@ export default function Home() {
           </div>
           <div>
             <h1 style={styles.h1}>{t.branding.name}</h1>
-            <p style={styles.subtitle}>{t.branding.tagline}</p>
           </div>
         </div>
         

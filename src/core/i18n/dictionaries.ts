@@ -1,7 +1,6 @@
 export interface Dictionary {
   branding: {
     name: string;
-    tagline: string;
   };
   search: {
     placeholder: string;
@@ -40,7 +39,6 @@ export interface Dictionary {
 export const en: Dictionary = {
   branding: {
     name: 'LeadGeni',
-    tagline: 'B2B Business Prospecting Engine',
   },
   search: {
     placeholder: 'What are you looking for? (e.g. Gyms, Clinics)',
@@ -79,7 +77,6 @@ export const en: Dictionary = {
 export const ar: Dictionary = {
   branding: {
     name: 'LeadGeni',
-    tagline: 'محرك البحث عن العملاء الشركات (B2B)',
   },
   search: {
     placeholder: 'ماذا تبحث عنه؟ (مثلاً: صالات رياضية، عيادات)',
