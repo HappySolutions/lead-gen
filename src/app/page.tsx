@@ -28,8 +28,12 @@ export default function Home() {
     setError(null);
     try {
       const resp = await fetch(`/api/leads?q=${encodeURIComponent(query)}&loc=${encodeURIComponent(location)}`);
-      if (!resp.ok) throw new Error('Failed to fetch leads');
       const data = await resp.json();
+      
+      if (!resp.ok) {
+        throw new Error(data.error || 'Failed to fetch leads');
+      }
+      
       setLeads(data);
     } catch (err: any) {
       setError(err.message);
@@ -70,7 +74,7 @@ export default function Home() {
   };
 
   return (
-    <main className="container">
+    <main className="container" dir={isRTL ? 'rtl' : 'ltr'}>
       <header style={styles.header}>
         <div style={styles.branding}>
           <div style={styles.logo}>
@@ -93,7 +97,7 @@ export default function Home() {
         </div>
       </header>
 
-      <section style={styles.searchSection}>
+      <section className="search-section">
         <div style={styles.heroText}>
           <h2 style={{ fontSize: isRTL ? '2rem' : '2.5rem' }}>{isRTL ? 'جد عملاءك المثاليين' : 'Find your next big client'}</h2>
           <p>{isRTL ? 'ابحث في ملايين الشركات مع نظام تقييم الجودة الآلي.' : 'Search millions of businesses with automated lead quality scoring.'}</p>
@@ -103,7 +107,7 @@ export default function Home() {
 
       {leads.length > 0 && (
         <div className="animate-in" style={{ animationDelay: '0.2s' }}>
-          <div style={styles.resultsHeader}>
+          <div className="section-header">
             <Filters filters={filters} onChange={setFilters} />
             <button onClick={exportToCSV} style={styles.exportButton}>
               <Download size={16} style={{ [isRTL ? 'marginLeft' : 'marginRight']: '8px' }} />
@@ -111,7 +115,7 @@ export default function Home() {
             </button>
           </div>
 
-          <div style={styles.grid}>
+          <div className="leads-grid" dir={isRTL ? 'rtl' : 'ltr'}>
             {processedLeads.map((lead) => (
               <LeadCard 
                 key={lead.id} 
@@ -204,23 +208,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: '600',
     color: '#475569',
   },
-  searchSection: {
-    textAlign: 'center',
-    marginBottom: '60px',
-    padding: '40px 0',
-  },
   heroText: {
     marginBottom: '32px',
     maxWidth: '600px',
     margin: '0 auto 32px auto',
-  },
-  resultsHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px',
-    flexWrap: 'wrap',
-    gap: '16px',
   },
   exportButton: {
     display: 'flex',
@@ -234,12 +225,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-    gap: '24px',
-    marginBottom: '60px',
   },
   emptyState: {
     textAlign: 'center',

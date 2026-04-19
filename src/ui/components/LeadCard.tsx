@@ -107,21 +107,25 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '16px',
     transition: 'all 0.3s ease',
     position: 'relative',
+    textAlign: 'inherit',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: '12px',
   },
   mainInfo: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
+    flex: 1,
   },
   title: {
     fontSize: '18px',
     color: '#0f172a',
     fontWeight: '600',
+    lineHeight: '1.4',
   },
   category: {
     fontSize: '13px',
@@ -149,6 +153,7 @@ const styles: Record<string, React.CSSProperties> = {
   ratingRow: {
     display: 'flex',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   stars: {
     display: 'flex',
@@ -156,13 +161,13 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '2px',
   },
   ratingText: {
-    marginLeft: '8px',
+    marginInlineStart: '8px',
     fontSize: '14px',
     fontWeight: '600',
     color: '#334155',
   },
   reviewCount: {
-    marginLeft: '6px',
+    marginInlineStart: '6px',
     fontSize: '13px',
     color: '#94a3b8',
   },
@@ -186,6 +191,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#6366f1',
     textDecoration: 'none',
     fontWeight: '500',
+    wordBreak: 'break-all',
   },
   aiBox: {
     backgroundColor: '#f5f3ff',
@@ -210,7 +216,7 @@ const styles: Record<string, React.CSSProperties> = {
     margin: 0,
   },
   moreButton: {
-    marginTop: '8px',
+    marginTop: 'auto',
     width: '100%',
     padding: '10px',
     borderRadius: '8px',

@@ -24,7 +24,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
   return (
     <form onSubmit={handleSubmit} style={styles.form}>
       <div style={styles.inputGroup}>
-        <Search size={18} style={isRTL ? styles.iconAr : styles.icon} />
+        <Search size={18} style={styles.icon} />
         <input
           type="text"
           placeholder={t.search.placeholder}
@@ -34,9 +34,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
           required
         />
       </div>
-      <div style={styles.divider} />
+      <div className="divider" style={styles.divider} />
       <div style={styles.inputGroup}>
-        <MapPin size={18} style={isRTL ? styles.iconAr : styles.icon} />
+        <MapPin size={18} style={styles.icon} />
         <input
           type="text"
           placeholder={t.search.location}
@@ -52,8 +52,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
         style={{
           ...styles.button,
           opacity: isLoading ? 0.7 : 1,
-          marginLeft: isRTL ? '0' : '8px',
-          marginRight: isRTL ? '8px' : '0',
         }}
       >
         {isLoading ? t.search.searching : t.search.button}
@@ -83,11 +81,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   icon: {
     color: '#94a3b8',
-    marginRight: '12px',
-  },
-  iconAr: {
-    color: '#94a3b8',
-    marginLeft: '12px',
+    marginInlineEnd: '12px',
   },
   input: {
     border: 'none',
@@ -97,6 +91,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#1e293b',
     fontWeight: '500',
     padding: '12px 0',
+    backgroundColor: 'transparent',
   },
   divider: {
     width: '1px',
@@ -113,7 +108,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: '600',
     fontSize: '15px',
     cursor: 'pointer',
-    marginLeft: '8px',
+    marginInlineStart: '8px',
     transition: 'all 0.2s ease',
   }
 };

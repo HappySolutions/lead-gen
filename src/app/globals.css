@@ -57,7 +57,12 @@ h1, h2, h3, h4 {
 }
 
 .container {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 /* Animations */
@@ -92,6 +97,69 @@ h1, h2, h3, h4 {
 
 .animate-in {
   animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* SaaS Dashboard Layout Utilities */
+.leads-grid {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+  margin-bottom: 60px;
+}
+
+@media (min-width: 640px) {
+  .leads-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .leads-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.search-section {
+  text-align: center;
+  margin-bottom: 60px;
+  padding: 60px 0;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (max-width: 640px) {
+  .search-section {
+    padding: 30px 0;
+  }
+  
+  .search-section form {
+    flex-direction: column !important;
+    gap: 12px;
+    padding: 16px !important;
+  }
+  
+  .search-section .divider {
+    display: none;
+  }
+  
+  .search-section button {
+    width: 100%;
+    margin-inline-start: 0 !important;
+  }
+}
+
+[dir="rtl"] .leads-grid {
+  direction: rtl;
 }
 
 /* Interactive elements */
