@@ -71,7 +71,7 @@ const getMockLeads = async (query: string, location: string): Promise<Lead[]> =>
       primaryTypeDisplayName: { text: 'Medical Clinic' },
       formattedAddress: '45 Cairo Rd, Sheikh Zayed',
       nationalPhoneNumber: '+20 111 222 3333',
-      rating: 4.2,
+      rating: 4.9,
       userRatingCount: 42,
     },
     {
@@ -79,8 +79,8 @@ const getMockLeads = async (query: string, location: string): Promise<Lead[]> =>
       primaryTypeDisplayName: { text: 'Software Company' },
       formattedAddress: 'Smart Village, Building B4',
       websiteUri: 'https://techedge.io',
-      rating: 3.9,
-      userRatingCount: 12,
+      rating: 4.5,
+      userRatingCount: 542,
     }
   ];
 

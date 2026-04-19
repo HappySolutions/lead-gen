@@ -4,13 +4,18 @@ import React, { useState, useMemo } from 'react';
 import { SearchBar } from '@/ui/components/SearchBar';
 import { LeadCard } from '@/ui/components/LeadCard';
 import { Filters } from '@/ui/components/Filters';
+import { LeadDetails } from '@/ui/components/LeadDetails';
+import { LanguageToggle } from '@/ui/components/LanguageToggle';
 import { Lead, SearchFilters } from '@/core/types';
-import { Download, LayoutDashboard, Database, TrendingUp } from 'lucide-react';
+import { useTranslation } from '@/core/i18n/useTranslation';
+import { Download, Database, TrendingUp, LayoutDashboard } from 'lucide-react';
 
 export default function Home() {
+  const { t, isRTL } = useTranslation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [filters, setFilters] = useState<SearchFilters>({
     hasWebsite: false,
     hasPhone: false,
@@ -40,7 +45,8 @@ export default function Home() {
       return true;
     });
 
-    return result.sort((a, b) => {
+    // Create a new array reference before sorting
+    return [...result].sort((a, b) => {
       if (filters.sortBy === 'score') return b.score - a.score;
       if (filters.sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       if (filters.sortBy === 'reviews') return (b.reviews || 0) - (a.reviews || 0);
@@ -71,23 +77,26 @@ export default function Home() {
             <Database size={24} color="#fff" />
           </div>
           <div>
-            <h1 style={styles.h1}>LeadGen MVP</h1>
-            <p style={styles.subtitle}>B2B Business Prospecting Engine</p>
+            <h1 style={styles.h1}>{t.branding.name}</h1>
+            <p style={styles.subtitle}>{t.branding.tagline}</p>
           </div>
         </div>
         
-        <div style={styles.stats}>
-          <div style={styles.statItem}>
-            <TrendingUp size={16} color="#10b981" />
-            <span>{leads.length} leads found</span>
+        <div style={styles.actions}>
+          <LanguageToggle />
+          <div style={styles.stats}>
+            <div style={styles.statItem}>
+              <TrendingUp size={16} color="#10b981" />
+              <span>{leads.length} {t.leads.found}</span>
+            </div>
           </div>
         </div>
       </header>
 
       <section style={styles.searchSection}>
         <div style={styles.heroText}>
-          <h2>Find your next big client</h2>
-          <p>Search millions of businesses with automated lead quality scoring.</p>
+          <h2 style={{ fontSize: isRTL ? '2rem' : '2.5rem' }}>{isRTL ? 'جد عملاءك المثاليين' : 'Find your next big client'}</h2>
+          <p>{isRTL ? 'ابحث في ملايين الشركات مع نظام تقييم الجودة الآلي.' : 'Search millions of businesses with automated lead quality scoring.'}</p>
         </div>
         <SearchBar onSearch={handleSearch} isLoading={loading} />
       </section>
@@ -97,17 +106,28 @@ export default function Home() {
           <div style={styles.resultsHeader}>
             <Filters filters={filters} onChange={setFilters} />
             <button onClick={exportToCSV} style={styles.exportButton}>
-              <Download size={16} style={{ marginRight: '8px' }} />
-              Export CSV
+              <Download size={16} style={{ [isRTL ? 'marginLeft' : 'marginRight']: '8px' }} />
+              {t.leads.export}
             </button>
           </div>
 
           <div style={styles.grid}>
             {processedLeads.map((lead) => (
-              <LeadCard key={lead.id} lead={lead} />
+              <LeadCard 
+                key={lead.id} 
+                lead={lead} 
+                onViewDetails={setSelectedLead}
+              />
             ))}
           </div>
         </div>
+      )}
+
+      {selectedLead && (
+        <LeadDetails 
+          lead={selectedLead} 
+          onClose={() => setSelectedLead(null)} 
+        />
       )}
 
       {!loading && leads.length === 0 && !error && (
@@ -115,8 +135,8 @@ export default function Home() {
           <div style={styles.emptyIcon}>
             <LayoutDashboard size={48} color="#e2e8f0" />
           </div>
-          <h3>Ready to start?</h3>
-          <p>Enter a business type and location to generate leads.</p>
+          <h3>{t.emptyState.title}</h3>
+          <p>{t.emptyState.description}</p>
         </div>
       )}
 
@@ -134,7 +154,8 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '48px',
+    padding: '24px 0',
+    marginBottom: '40px',
   },
   branding: {
     display: 'flex',
@@ -152,72 +173,91 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
   },
   h1: {
-    fontSize: '20px',
-    margin: 0,
+    fontSize: '24px',
+    fontWeight: '700',
     color: '#0f172a',
+    letterSpacing: '-0.02em',
+    marginBottom: '2px',
+    fontFamily: 'var(--font-heading)',
   },
   subtitle: {
-    fontSize: '13px',
+    fontSize: '14px',
     color: '#64748b',
-    margin: 0,
+    fontWeight: '500',
+  },
+  actions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
   },
   stats: {
-    display: 'flex',
-    gap: '24px',
+    backgroundColor: '#fff',
+    padding: '8px 16px',
+    borderRadius: '100px',
+    border: '1px solid #e2e8f0',
   },
   statItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    fontSize: '14px',
+    fontSize: '13px',
+    fontWeight: '600',
     color: '#475569',
-    fontWeight: '500',
   },
   searchSection: {
     textAlign: 'center',
-    marginBottom: '64px',
+    marginBottom: '60px',
+    padding: '40px 0',
   },
   heroText: {
     marginBottom: '32px',
+    maxWidth: '600px',
+    margin: '0 auto 32px auto',
   },
   resultsHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: '32px',
+    alignItems: 'center',
+    marginBottom: '24px',
+    flexWrap: 'wrap',
+    gap: '16px',
   },
   exportButton: {
     display: 'flex',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    border: '1px solid #e2e8f0',
-    padding: '10px 16px',
+    backgroundColor: '#0f172a',
+    color: '#fff',
+    border: 'none',
+    padding: '10px 18px',
     borderRadius: '10px',
     fontSize: '14px',
     fontWeight: '600',
-    color: '#475569',
     cursor: 'pointer',
-    height: 'fit-content',
+    transition: 'all 0.2s ease',
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
     gap: '24px',
+    marginBottom: '60px',
   },
   emptyState: {
     textAlign: 'center',
-    padding: '80px 0',
-    color: '#94a3b8',
+    padding: '100px 0',
+    color: '#64748b',
   },
   emptyIcon: {
     marginBottom: '20px',
+    display: 'flex',
+    justifyContent: 'center',
   },
   errorBox: {
     padding: '16px',
     backgroundColor: '#fef2f2',
     color: '#dc2626',
     borderRadius: '12px',
-    border: '1px solid #fee2e2',
+    border: '1px solid #fecaca',
     textAlign: 'center',
+    marginTop: '20px',
   }
 };

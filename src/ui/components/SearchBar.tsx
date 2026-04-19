@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Search, MapPin } from 'lucide-react';
+import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface SearchBarProps {
   onSearch: (query: string, location: string) => void;
@@ -9,6 +10,7 @@ interface SearchBarProps {
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => {
+  const { t, isRTL } = useTranslation();
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
 
@@ -22,10 +24,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
   return (
     <form onSubmit={handleSubmit} style={styles.form}>
       <div style={styles.inputGroup}>
-        <Search size={18} style={styles.icon} />
+        <Search size={18} style={isRTL ? styles.iconAr : styles.icon} />
         <input
           type="text"
-          placeholder="What are you looking for? (e.g. Gyms, Clinics)"
+          placeholder={t.search.placeholder}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           style={styles.input}
@@ -34,10 +36,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
       </div>
       <div style={styles.divider} />
       <div style={styles.inputGroup}>
-        <MapPin size={18} style={styles.icon} />
+        <MapPin size={18} style={isRTL ? styles.iconAr : styles.icon} />
         <input
           type="text"
-          placeholder="Location (e.g. Sheikh Zayed)"
+          placeholder={t.search.location}
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           style={styles.input}
@@ -50,9 +52,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
         style={{
           ...styles.button,
           opacity: isLoading ? 0.7 : 1,
+          marginLeft: isRTL ? '0' : '8px',
+          marginRight: isRTL ? '8px' : '0',
         }}
       >
-        {isLoading ? 'Searching...' : 'Find Leads'}
+        {isLoading ? t.search.searching : t.search.button}
       </button>
     </form>
   );
@@ -80,6 +84,10 @@ const styles: Record<string, React.CSSProperties> = {
   icon: {
     color: '#94a3b8',
     marginRight: '12px',
+  },
+  iconAr: {
+    color: '#94a3b8',
+    marginLeft: '12px',
   },
   input: {
     border: 'none',

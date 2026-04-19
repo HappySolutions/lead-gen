@@ -3,6 +3,7 @@
 import React from 'react';
 import { SearchFilters } from '@/core/types';
 import { Filter, SortAsc } from 'lucide-react';
+import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface FiltersProps {
   filters: SearchFilters;
@@ -10,6 +11,8 @@ interface FiltersProps {
 }
 
 export const Filters: React.FC<FiltersProps> = ({ filters, onChange }) => {
+  const { t } = useTranslation();
+  
   const toggleFilter = (key: keyof Pick<SearchFilters, 'hasWebsite' | 'hasPhone'>) => {
     onChange({ ...filters, [key]: !filters[key] });
   };
@@ -26,26 +29,27 @@ export const Filters: React.FC<FiltersProps> = ({ filters, onChange }) => {
           onClick={() => toggleFilter('hasWebsite')}
           style={filters.hasWebsite ? styles.activeFilter : styles.filter}
         >
-          Has Website
+          {t.filters.hasWebsite}
         </button>
         <button 
           onClick={() => toggleFilter('hasPhone')}
           style={filters.hasPhone ? styles.activeFilter : styles.filter}
         >
-          Has Phone
+          {t.filters.hasPhone}
         </button>
       </div>
 
       <div style={styles.section}>
         <SortAsc size={16} color="#64748b" />
+        <span style={styles.sortLabel}>{t.filters.sortBy}</span>
         <select 
           value={filters.sortBy} 
           onChange={handleSortChange}
           style={styles.select}
         >
-          <option value="score">Sort by Score</option>
-          <option value="rating">Sort by Rating</option>
-          <option value="reviews">Sort by Popularity</option>
+          <option value="score">{t.filters.sortOptions.score}</option>
+          <option value="rating">{t.filters.sortOptions.rating}</option>
+          <option value="reviews">{t.filters.sortOptions.reviews}</option>
         </select>
       </div>
     </div>

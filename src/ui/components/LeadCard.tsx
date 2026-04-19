@@ -3,6 +3,7 @@
 import React from 'react';
 import { Lead } from '@/core/types';
 import { Star, MapPin, Globe, Phone, Info, Zap } from 'lucide-react';
+import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface LeadCardProps {
   lead: Lead;
@@ -10,7 +11,10 @@ interface LeadCardProps {
 }
 
 export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
-  const isHighPotential = lead.scoreLabel === 'High Potential';
+  const { t, isRTL } = useTranslation();
+  const isHighPotential = lead.score >= 75;
+
+  const translatedScoreLabel = lead.score >= 75 ? t.leads.highPotential : (lead.score >= 40 ? t.leads.medium : t.leads.low);
   
   return (
     <div style={styles.card} className="animate-in">
@@ -24,10 +28,11 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
           backgroundColor: isHighPotential ? '#f0fdf4' : '#f8fafc',
           borderColor: isHighPotential ? '#bbf7d0' : '#e2e8f0',
           color: isHighPotential ? '#15803d' : '#64748b',
+          flexDirection: isRTL ? 'row-reverse' : 'row',
         }}>
-          <Zap size={14} style={{ marginRight: '6px' }} />
+          <Zap size={14} style={{ [isRTL ? 'marginLeft' : 'marginRight']: '6px' }} />
           <span style={styles.scoreText}>{lead.score}</span>
-          <span style={styles.scoreLabel}>{lead.scoreLabel}</span>
+          <span style={styles.scoreLabel}>{translatedScoreLabel}</span>
         </div>
       </div>
 
@@ -42,7 +47,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
             />
           ))}
           <span style={styles.ratingText}>{lead.rating}</span>
-          <span style={styles.reviewCount}>({lead.reviews || 0} reviews)</span>
+          <span style={styles.reviewCount}>({lead.reviews || 0} {t.leads.reviews})</span>
         </div>
       </div>
 
@@ -70,18 +75,21 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
       {lead.aiInsights && (
         <div style={styles.aiBox}>
           <div style={styles.aiHeader}>
-            <Info size={12} style={{ marginRight: '6px' }} />
-            <span>AI INSIGHT</span>
+            <Info size={12} style={{ [isRTL ? 'marginLeft' : 'marginRight']: '6px' }} />
+            <span>{t.leads.aiInsight}</span>
           </div>
           <p style={styles.aiText}>{lead.aiInsights}</p>
         </div>
       )}
 
       <button 
-        onClick={() => onViewDetails?.(lead)}
+        onClick={(e) => {
+          e.preventDefault();
+          onViewDetails?.(lead);
+        }}
         style={styles.moreButton}
       >
-        View Details
+        {t.leads.viewDetails}
       </button>
     </div>
   );
@@ -98,6 +106,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     gap: '16px',
     transition: 'all 0.3s ease',
+    position: 'relative',
   },
   header: {
     display: 'flex',
@@ -127,10 +136,11 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid',
     fontSize: '13px',
     fontWeight: '600',
+    flexShrink: 0,
   },
   scoreText: {
-    marginRight: '8px',
     fontSize: '15px',
+    margin: '0 4px',
   },
   scoreLabel: {
     fontSize: '12px',
@@ -209,5 +219,8 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#475569',
     fontSize: '14px',
     fontWeight: '600',
+    cursor: 'pointer',
+    position: 'relative',
+    zIndex: 10,
   }
 };
