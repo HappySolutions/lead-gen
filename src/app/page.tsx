@@ -6,6 +6,7 @@ import { LeadCard } from '@/ui/components/LeadCard';
 import { Filters } from '@/ui/components/Filters';
 import { LeadDetails } from '@/ui/components/LeadDetails';
 import { LanguageToggle } from '@/ui/components/LanguageToggle';
+import { ThemeToggle } from '@/ui/components/ThemeToggle';
 import { Lead, SearchFilters } from '@/core/types';
 import { useTranslation } from '@/core/i18n/useTranslation';
 import { Download, Database, TrendingUp, LayoutDashboard } from 'lucide-react';
@@ -86,6 +87,7 @@ export default function Home() {
         </div>
         
         <div style={styles.actions}>
+          <ThemeToggle />
           <LanguageToggle />
           <div style={styles.stats}>
             <div style={styles.statItem}>
@@ -166,7 +168,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '16px',
   },
   logo: {
-    backgroundColor: '#6366f1',
+    backgroundColor: 'var(--primary)',
     width: '44px',
     height: '44px',
     borderRadius: '12px',
@@ -178,14 +180,14 @@ const styles: Record<string, React.CSSProperties> = {
   h1: {
     fontSize: '24px',
     fontWeight: '700',
-    color: '#0f172a',
+    color: 'var(--foreground)',
     letterSpacing: '-0.02em',
     marginBottom: '2px',
     fontFamily: 'var(--font-heading)',
   },
   subtitle: {
     fontSize: '14px',
-    color: '#64748b',
+    color: 'var(--muted)',
     fontWeight: '500',
   },
   actions: {
@@ -194,10 +196,11 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '20px',
   },
   stats: {
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--card)',
     padding: '8px 16px',
     borderRadius: '100px',
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--border)',
+    boxShadow: 'var(--shadow-sm)',
   },
   statItem: {
     display: 'flex',
@@ -205,7 +208,8 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '8px',
     fontSize: '13px',
     fontWeight: '600',
-    color: '#475569',
+    color: 'var(--foreground)',
+    opacity: 0.8,
   },
   heroText: {
     marginBottom: '32px',
@@ -215,8 +219,8 @@ const styles: Record<string, React.CSSProperties> = {
   exportButton: {
     display: 'flex',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
-    color: '#fff',
+    backgroundColor: 'var(--foreground)',
+    color: 'var(--background)',
     border: 'none',
     padding: '10px 18px',
     borderRadius: '10px',
@@ -228,7 +232,7 @@ const styles: Record<string, React.CSSProperties> = {
   emptyState: {
     textAlign: 'center',
     padding: '100px 0',
-    color: '#64748b',
+    color: 'var(--muted)',
   },
   emptyIcon: {
     marginBottom: '20px',

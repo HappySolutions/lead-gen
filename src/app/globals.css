@@ -27,6 +27,24 @@
   --font-arabic: 'IBM Plex Sans Arabic', sans-serif;
 }
 
+.dark {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --primary: #818cf8;
+  --primary-foreground: #ffffff;
+  --secondary: #334155;
+  --secondary-foreground: #f1f5f9;
+  --muted: #94a3b8;
+  --muted-foreground: #64748b;
+  --accent: #1e293b;
+  --accent-foreground: #818cf8;
+  --border: #334155;
+  --input: #334155;
+  --ring: #818cf8;
+}
+
 [lang="ar"] body {
   font-family: var(--font-arabic);
 }

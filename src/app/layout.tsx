@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { LanguageProvider } from '@/core/i18n/useTranslation';
+import { ThemeProvider } from '@/core/theme/useTheme';
 
 export const metadata: Metadata = {
   title: 'LeadGeni | B2B Business Prospecting',
@@ -15,9 +16,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <LanguageProvider>
-          {children}
-        </LanguageProvider>
+        <ThemeProvider>
+          <LanguageProvider>
+            {children}
+          </LanguageProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

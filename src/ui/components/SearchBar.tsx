@@ -64,14 +64,14 @@ const styles: Record<string, React.CSSProperties> = {
   form: {
     display: 'flex',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'var(--card)',
     padding: '8px',
     borderRadius: '16px',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+    boxShadow: 'var(--shadow-md)',
     width: '100%',
     maxWidth: '800px',
     margin: '0 auto',
-    border: '1px solid #e2e8f0',
+    border: '1px solid var(--border)',
   },
   inputGroup: {
     display: 'flex',
@@ -80,7 +80,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '0 12px',
   },
   icon: {
-    color: '#94a3b8',
+    color: 'var(--muted-foreground)',
     marginInlineEnd: '12px',
   },
   input: {
@@ -88,7 +88,7 @@ const styles: Record<string, React.CSSProperties> = {
     outline: 'none',
     width: '100%',
     fontSize: '15px',
-    color: '#1e293b',
+    color: 'var(--foreground)',
     fontWeight: '500',
     padding: '12px 0',
     backgroundColor: 'transparent',
@@ -96,12 +96,12 @@ const styles: Record<string, React.CSSProperties> = {
   divider: {
     width: '1px',
     height: '24px',
-    backgroundColor: '#e2e8f0',
+    backgroundColor: 'var(--border)',
     margin: '0 8px',
   },
   button: {
-    backgroundColor: '#6366f1',
-    color: '#fff',
+    backgroundColor: 'var(--primary)',
+    color: 'var(--primary-foreground)',
     border: 'none',
     padding: '12px 24px',
     borderRadius: '10px',
