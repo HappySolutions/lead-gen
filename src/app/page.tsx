@@ -11,7 +11,7 @@ import { useTranslation } from '@/core/i18n/useTranslation';
 import { Download, Database, TrendingUp, LayoutDashboard } from 'lucide-react';
 
 export default function Home() {
-  const { t, isRTL } = useTranslation();
+  const { t, isRTL, language } = useTranslation();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +27,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     try {
-      const resp = await fetch(`/api/leads?q=${encodeURIComponent(query)}&loc=${encodeURIComponent(location)}`);
+      const resp = await fetch(`/api/leads?q=${encodeURIComponent(query)}&loc=${encodeURIComponent(location)}&lang=${language}`);
       const data = await resp.json();
       
       if (!resp.ok) {

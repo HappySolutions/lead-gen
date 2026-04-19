@@ -9,12 +9,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get('q');
   const loc = searchParams.get('loc');
+  const lang = searchParams.get('lang') || 'en';
 
   if (!q || !loc) {
     return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   }
 
-  const cacheKey = `${q.toLowerCase()}-${loc.toLowerCase()}`;
+  const cacheKey = `${lang}-${q.toLowerCase()}-${loc.toLowerCase()}`;
   const cached = cache.get(cacheKey);
   
   if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const leads = await searchLeads(q, loc);
+    const leads = await searchLeads(q, loc, lang);
     cache.set(cacheKey, { data: leads, timestamp: Date.now() });
     
     return NextResponse.json(leads);

@@ -5,12 +5,13 @@ import { analyzeLeadQuality } from './ai';
 const GOOGLE_PLACES_API_URL = 'https://places.googleapis.com/v1/places:searchText';
 
 export const searchLeads = async (
-  query: string,
+  query: string, 
   location: string,
+  lang: string = 'en',
   useMock: boolean = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true'
 ): Promise<Lead[]> => {
   if (useMock) {
-    return getMockLeads(query, location);
+    return getMockLeads(query, location, lang);
   }
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
@@ -19,10 +20,10 @@ export const searchLeads = async (
   // Implementation of Google Places API (New) call
   // This would use fetch with field masking: 'places.displayName,places.formattedAddress,etc.'
   // For the MVP, we assume a structured response.
-  return [];
+  return []; 
 };
 
-export const normalizePlace = async (place: any): Promise<Lead> => {
+export const normalizePlace = async (place: any, lang: string = 'en'): Promise<Lead> => {
   const baseLead: Partial<Lead> = {
     id: place.id || Math.random().toString(36).substr(2, 9),
     name: place.displayName?.text || 'Unknown Business',
@@ -40,7 +41,7 @@ export const normalizePlace = async (place: any): Promise<Lead> => {
 
   // Enhance with Scoring & AI
   const { score: baseScore, explanation } = calculateBaseScore(baseLead);
-  const aiAnalysis = await analyzeLeadQuality(baseLead);
+  const aiAnalysis = await analyzeLeadQuality(baseLead, lang);
 
   const finalScore = Math.round((baseScore * 0.8) + (aiAnalysis.score * 0.2));
 
@@ -53,7 +54,7 @@ export const normalizePlace = async (place: any): Promise<Lead> => {
   };
 };
 
-const getMockLeads = async (query: string, location: string): Promise<Lead[]> => {
+const getMockLeads = async (query: string, location: string, lang: string = 'en'): Promise<Lead[]> => {
   await new Promise(r => setTimeout(r, 1200)); // Simulate delay
 
   const mockData = [
@@ -143,5 +144,5 @@ const getMockLeads = async (query: string, location: string): Promise<Lead[]> =>
     }
   ];
 
-  return Promise.all(mockData.map(place => normalizePlace(place)));
+  return Promise.all(mockData.map(place => normalizePlace(place, lang)));
 };
