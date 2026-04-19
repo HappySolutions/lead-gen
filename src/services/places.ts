@@ -5,7 +5,7 @@ import { analyzeLeadQuality } from './ai';
 const GOOGLE_PLACES_API_URL = 'https://places.googleapis.com/v1/places:searchText';
 
 export const searchLeads = async (
-  query: string, 
+  query: string,
   location: string,
   useMock: boolean = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true'
 ): Promise<Lead[]> => {
@@ -19,7 +19,7 @@ export const searchLeads = async (
   // Implementation of Google Places API (New) call
   // This would use fetch with field masking: 'places.displayName,places.formattedAddress,etc.'
   // For the MVP, we assume a structured response.
-  return []; 
+  return [];
 };
 
 export const normalizePlace = async (place: any): Promise<Lead> => {
@@ -41,7 +41,7 @@ export const normalizePlace = async (place: any): Promise<Lead> => {
   // Enhance with Scoring & AI
   const { score: baseScore, explanation } = calculateBaseScore(baseLead);
   const aiAnalysis = await analyzeLeadQuality(baseLead);
-  
+
   const finalScore = Math.round((baseScore * 0.8) + (aiAnalysis.score * 0.2));
 
   return {
@@ -55,7 +55,7 @@ export const normalizePlace = async (place: any): Promise<Lead> => {
 
 const getMockLeads = async (query: string, location: string): Promise<Lead[]> => {
   await new Promise(r => setTimeout(r, 1200)); // Simulate delay
-  
+
   const mockData = [
     {
       displayName: { text: 'Elite Fitness Center' },
@@ -71,7 +71,7 @@ const getMockLeads = async (query: string, location: string): Promise<Lead[]> =>
       primaryTypeDisplayName: { text: 'Medical Clinic' },
       formattedAddress: '45 Cairo Rd, Sheikh Zayed',
       nationalPhoneNumber: '+20 111 222 3333',
-      rating: 4.9,
+      rating: 4.2,
       userRatingCount: 42,
     },
     {
@@ -79,8 +79,67 @@ const getMockLeads = async (query: string, location: string): Promise<Lead[]> =>
       primaryTypeDisplayName: { text: 'Software Company' },
       formattedAddress: 'Smart Village, Building B4',
       websiteUri: 'https://techedge.io',
+      rating: 3.9,
+      userRatingCount: 12,
+    },
+    {
+      displayName: { text: 'Green Valley Real Estate' },
+      primaryTypeDisplayName: { text: 'Real Estate Agency' },
+      formattedAddress: 'Sheikh Zayed, District 5',
+      nationalPhoneNumber: '+20 155 678 9012',
+      websiteUri: 'https://greenvalley.com',
+      rating: 4.6,
+      userRatingCount: 98,
+    },
+    {
+      displayName: { text: 'Urban Coffee House' },
+      primaryTypeDisplayName: { text: 'Cafe & Restaurant' },
+      formattedAddress: 'El Mohandeseen, Cairo',
+      nationalPhoneNumber: '+20 100 222 3344',
+      rating: 4.3,
+      userRatingCount: 210,
+    },
+    {
+      displayName: { text: 'Bright Minds Nursery' },
+      primaryTypeDisplayName: { text: 'Education' },
+      formattedAddress: 'Sheikh Zayed City, Giza',
+      nationalPhoneNumber: '+20 122 333 4455',
+      rating: 4.7,
+      userRatingCount: 65,
+    },
+    {
+      displayName: { text: 'FixIt Auto Service' },
+      primaryTypeDisplayName: { text: 'Car Service' },
+      formattedAddress: '6th of October City',
+      nationalPhoneNumber: '+20 155 111 2233',
+      rating: 4.1,
+      userRatingCount: 88,
+    },
+    {
+      displayName: { text: 'SkinGlow Dermatology' },
+      primaryTypeDisplayName: { text: 'Dermatology Clinic' },
+      formattedAddress: 'Dokki, Cairo',
+      nationalPhoneNumber: '+20 199 888 7766',
       rating: 4.5,
-      userRatingCount: 542,
+      userRatingCount: 134,
+      websiteUri: 'https://skinglow.com',
+    },
+    {
+      displayName: { text: 'BuildPro Contractors' },
+      primaryTypeDisplayName: { text: 'Construction Company' },
+      formattedAddress: 'New Cairo, Fifth Settlement',
+      nationalPhoneNumber: '+20 111 555 7788',
+      rating: 4.0,
+      userRatingCount: 47,
+    },
+    {
+      displayName: { text: 'Nova Marketing Agency' },
+      primaryTypeDisplayName: { text: 'Marketing Agency' },
+      formattedAddress: 'Zamalek, Cairo',
+      websiteUri: 'https://novamarketing.io',
+      rating: 4.6,
+      userRatingCount: 73,
+      nationalPhoneNumber: '+20 102 909 8080',
     }
   ];
 
