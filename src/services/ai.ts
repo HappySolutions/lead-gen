@@ -1,69 +1,104 @@
+/**
+ * ai.ts — Optional AI insights layer
+ *
+ * Uses rule-based heuristics derived from real lead data.
+ * If ANTHROPIC_API_KEY is set in env, it can call Claude for richer insights.
+ * No fake ratings or fake data are generated.
+ */
+
 import { Lead } from '../core/types';
 
 export interface AIAnalysis {
-  score: number;
-  explanation: string;
   insights: string;
 }
 
-export const analyzeLeadQuality = async (lead: Partial<Lead>, lang: string = 'en'): Promise<AIAnalysis> => {
-  // If we had a real Gemini API Key, we would call it here.
-  // For now, we simulate an AI evaluation based on business data.
-  
-  if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {
-    return simulateAIAnalysis(lead, lang);
+/**
+ * Generates a brief insight string for a lead.
+ * Called only for top 5 leads to keep API fast.
+ */
+export async function analyzeLeadQuality(lead: Partial<Lead>): Promise<AIAnalysis> {
+  // If an Anthropic key is available, use the real Claude API
+  if (process.env.ANTHROPIC_API_KEY) {
+    return callClaude(lead);
   }
+  // Otherwise fall back to deterministic heuristics
+  return heuristicInsight(lead);
+}
 
-  // Placeholder for real Google AI (Gemini) implementation
+async function callClaude(lead: Partial<Lead>): Promise<AIAnalysis> {
   try {
-    // Real implementation would go here...
-    return simulateAIAnalysis(lead, lang);
-  } catch (error) {
-    console.error('AI Analysis failed:', error);
-    return { 
-      score: 50, 
-      explanation: lang === 'ar' ? 'تقييم الذكاء الاصطناعي غير متوفر حالياً' : 'AI evaluation unavailable', 
-      insights: '' 
-    };
-  }
-};
+    const prompt = `
+You are a B2B sales analyst. In 1–2 sentences, describe the lead quality and sales opportunity for this business:
+Name: ${lead.name}
+Category: ${lead.category}
+Address: ${lead.address}
+Has phone: ${lead.phone ? 'yes' : 'no'}
+Has website: ${lead.website ? 'yes' : 'no'}
+Opening hours: ${lead.openingHours ?? 'unknown'}
 
-const simulateAIAnalysis = (lead: Partial<Lead>, lang: string): AIAnalysis => {
+Be specific, factual, and avoid generic statements.
+`.trim();
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 120,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Claude API error: ${res.status}`);
+
+    const data = await res.json();
+    const text: string = data?.content?.[0]?.text ?? '';
+    return { insights: text.trim() };
+  } catch (err) {
+    console.error('Claude API failed, falling back to heuristic:', err);
+    return heuristicInsight(lead);
+  }
+}
+
+function heuristicInsight(lead: Partial<Lead>): AIAnalysis {
   const hasWebsite = !!lead.website;
-  const hasHighRating = (lead.rating || 0) > 4.2;
-  const isEstablished = (lead.reviews || 0) > 50;
+  const hasPhone = !!lead.phone;
+  const hasHours = !!lead.openingHours;
 
-  if (hasWebsite && hasHighRating && isEstablished) {
+  if (hasWebsite && hasPhone && hasHours) {
     return {
-      score: 95,
-      explanation: lang === 'ar' 
-        ? 'تواجد رقمي استثنائي مع أدلة اجتماعية قوية ورضا عالٍ من العملاء.' 
-        : 'Exceptional digital presence with strong social proof and high customer satisfaction.',
-      insights: lang === 'ar'
-        ? 'سلطة العلامة التجارية عالية؛ من المرجح أن يكون قائداً في مجاله.'
-        : 'Brand authority is high; likely a top-tier industry leader.'
+      insights:
+        'Well-documented business with strong digital presence. High contact accessibility makes outreach straightforward.',
     };
   }
 
-  if (hasWebsite || (hasHighRating && isEstablished)) {
+  if (hasWebsite && hasPhone) {
     return {
-      score: 75,
-      explanation: lang === 'ar'
-        ? 'عملية احترافية ذات مصداقية راسخة ونشاط مستمر.'
-        : 'Professional operation with established credibility and consistent activity.',
-      insights: lang === 'ar'
-        ? 'عميل واعد مع عمليات تجارية نشطة وانطباع عام إيجابي.'
-        : 'Solid lead with active business operations and positive public sentiment.'
+      insights:
+        'Established business with direct contact info and online presence. Good candidate for digital services pitch.',
+    };
+  }
+
+  if (hasPhone && !hasWebsite) {
+    return {
+      insights:
+        'Has direct contact but lacks a website. Strong opportunity to offer web or digital marketing services.',
+    };
+  }
+
+  if (hasWebsite && !hasPhone) {
+    return {
+      insights:
+        'Online presence exists but no listed phone. May respond better to digital outreach channels.',
     };
   }
 
   return {
-    score: 55,
-    explanation: lang === 'ar'
-      ? 'بصمة تجارية قياسية مع مقاييس رؤية أساسية.'
-      : 'Standard business footprint with baseline visibility metrics.',
-    insights: lang === 'ar'
-      ? 'كيان نشط، على الرغم من وجود فرص لتحسين التفاعل الرقمي.'
-      : 'Active entity, though digital optimization opportunities exist to increase engagement.'
+    insights:
+      'Limited contact data in public records. Verify existence on-site or via local directories before outreach.',
   };
-};
+}

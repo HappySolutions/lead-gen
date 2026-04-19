@@ -1,148 +1,232 @@
-import { Lead } from '../core/types';
-import { calculateBaseScore, getScoreLabel } from '../core/scoring';
-import { analyzeLeadQuality } from './ai';
+/**
+ * places.ts — Data fetching layer. Pure I/O, no scoring, no AI.
+ *
+ * Responsibilities (this file only):
+ *   1. Geocode a location string → lat/lng  (Nominatim)
+ *   2. Fetch matching businesses            (Overpass API)
+ *   3. Normalise raw OSM elements → RawLead
+ *
+ * What this file does NOT do:
+ *   - Score leads        → core/scoring.ts
+ *   - Run AI analysis    → services/ai.ts
+ *   - Merge AI results   → app/api/leads/route.ts
+ *
+ * All network calls are server-side only. This module is never imported
+ * by any UI component — only by /app/api/leads/route.ts.
+ */
 
-const GOOGLE_PLACES_API_URL = 'https://places.googleapis.com/v1/places:searchText';
+const NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
+const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const FETCH_LIMIT = 25; // keep small to avoid Overpass timeouts
 
-export const searchLeads = async (
-  query: string, 
-  location: string,
-  lang: string = 'en',
-  useMock: boolean = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true'
-): Promise<Lead[]> => {
-  if (useMock) {
-    return getMockLeads(query, location, lang);
+// ─── OSM category map ─────────────────────────────────────────────────────────
+
+const CATEGORY_MAP: Record<string, string[]> = {
+  gym: ['leisure=fitness_centre', 'leisure=sports_centre'],
+  clinic: ['amenity=clinic', 'amenity=doctors', 'amenity=healthcare'],
+  hospital: ['amenity=hospital'],
+  dental: ['amenity=dentist'],
+  pharmacy: ['amenity=pharmacy'],
+  restaurant: ['amenity=restaurant'],
+  cafe: ['amenity=cafe'],
+  hotel: ['tourism=hotel'],
+  school: ['amenity=school'],
+  bank: ['amenity=bank'],
+  salon: ['shop=hairdresser', 'shop=beauty'],
+  supermarket: ['shop=supermarket'],
+  bakery: ['shop=bakery'],
+  mechanic: ['shop=car_repair'],
+  lawyer: ['office=lawyer'],
+  accountant: ['office=accountant'],
+  it: ['office=it', 'office=company'],
+  real_estate: ['office=estate_agent'],
+  printing: ['shop=copyshop', 'shop=printer'],
+  kindergarten: ['amenity=kindergarten'],
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface NominatimResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+}
+
+interface OverpassElement {
+  type: 'node' | 'way' | 'relation';
+  id: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat: number; lon: number };
+  tags?: Record<string, string>;
+}
+
+/** Normalised output from this layer — no scores yet */
+export interface RawLead {
+  osmId: string;
+  name: string;
+  category: string;
+  address: string;
+  phone?: string;
+  website?: string;
+  email?: string;
+  openingHours?: string;
+  // OSM does not supply ratings or reviews — these fields are intentionally absent
+  location: { lat: number; lng: number };
+}
+
+// ─── Step 1: Geocode ──────────────────────────────────────────────────────────
+
+async function geocodeLocation(location: string): Promise<{ lat: number; lng: number }> {
+  const url = `${NOMINATIM_URL}/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'LeadGeni-MVP/1.0 (contact@leadgeni.io)',
+      'Accept-Language': 'en',
+    },
+  });
+
+  if (!res.ok) throw new Error(`Nominatim error ${res.status}: service unavailable`);
+
+  const data: NominatimResult[] = await res.json();
+  if (!data?.length) {
+    throw new Error(`Location not found: "${location}". Try a city name or add a country.`);
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_PLACES_API_KEY;
-  if (!apiKey) throw new Error('Google Places API Key missing');
+  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+}
 
-  // Implementation of Google Places API (New) call
-  // This would use fetch with field masking: 'places.displayName,places.formattedAddress,etc.'
-  // For the MVP, we assume a structured response.
-  return []; 
-};
+// ─── Step 2: Build + run Overpass query ──────────────────────────────────────
 
-export const normalizePlace = async (place: any, lang: string = 'en'): Promise<Lead> => {
-  const baseLead: Partial<Lead> = {
-    id: place.id || Math.random().toString(36).substr(2, 9),
-    name: place.displayName?.text || 'Unknown Business',
-    category: place.primaryTypeDisplayName?.text || 'Business',
-    address: place.formattedAddress || 'No Address available',
-    phone: place.nationalPhoneNumber,
-    website: place.websiteUri,
-    rating: place.rating,
-    reviews: place.userRatingCount,
-    location: {
-      lat: place.location?.latitude || 0,
-      lng: place.location?.longitude || 0,
-    },
-  };
+function buildOverpassQuery(query: string, lat: number, lng: number, radiusM = 3000): string {
+  const lower = query.toLowerCase();
+  const matchedKey = Object.keys(CATEGORY_MAP).find((k) => lower.includes(k));
+  const tagFilters = matchedKey ? CATEGORY_MAP[matchedKey] : [`name~"${query}",i`];
 
-  // Enhance with Scoring & AI
-  const { score: baseScore, explanation } = calculateBaseScore(baseLead);
-  const aiAnalysis = await analyzeLeadQuality(baseLead, lang);
+  const around = `(around:${radiusM},${lat},${lng})`;
 
-  const finalScore = Math.round((baseScore * 0.8) + (aiAnalysis.score * 0.2));
+  const unions = tagFilters
+    .flatMap((tag) => {
+      const eqIdx = tag.indexOf('=');
+      if (eqIdx !== -1) {
+        const k = tag.slice(0, eqIdx);
+        const v = tag.slice(eqIdx + 1);
+        return [`node[${k}=${v}]${around};`, `way[${k}=${v}]${around};`];
+      }
+      return [`node[${tag}]${around};`, `way[${tag}]${around};`];
+    })
+    .join('\n  ');
+
+  return `[out:json][timeout:30][maxsize:536870912];\n(\n  ${unions}\n);\nout center ${FETCH_LIMIT};`;
+}
+
+async function fetchFromOverpass(query: string): Promise<OverpassElement[]> {
+  const url = `${OVERPASS_URL}?data=${encodeURIComponent(query)}`;
+  console.log('[Overpass] Query URL:', url);
+  console.log('[Overpass] Raw query:\n', query);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 29_000); // 29s client timeout
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: { 'User-Agent': 'LeadGeni-MVP/1.0' },
+      cache: 'no-store',
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!res.ok) throw new Error(`Overpass error ${res.status}: try again shortly`);
+
+  const data = await res.json();
+  return (data.elements ?? []) as OverpassElement[];
+}
+
+// ─── Step 3: Normalise OSM element → RawLead ─────────────────────────────────
+
+function normaliseElement(el: OverpassElement): RawLead | null {
+  const tags = el.tags ?? {};
+
+  const name = tags['name'] || tags['name:en'] || tags['brand'];
+  if (!name) return null;
+
+  const lat = el.lat ?? el.center?.lat;
+  const lng = el.lon ?? el.center?.lon;
+  if (lat === undefined || lng === undefined) return null;
+
+  const addressParts = [
+    tags['addr:housenumber'],
+    tags['addr:street'],
+    tags['addr:suburb'] || tags['addr:quarter'],
+    tags['addr:city'] || tags['addr:town'] || tags['addr:village'],
+    tags['addr:country'],
+  ].filter(Boolean);
+
+  const address =
+    addressParts.length > 0
+      ? addressParts.join(', ')
+      : `Near (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+  const rawWebsite = tags['website'] || tags['contact:website'] || tags['url'];
 
   return {
-    ...baseLead as Lead,
-    score: finalScore,
-    scoreLabel: getScoreLabel(finalScore),
-    scoreExplanation: explanation,
-    aiInsights: aiAnalysis.explanation,
+    osmId: `osm-${el.type}-${el.id}`,
+    name,
+    category: deriveCategory(tags),
+    address,
+    phone: tags['phone'] || tags['contact:phone'] || undefined,
+    website: rawWebsite ? normaliseUrl(rawWebsite) : undefined,
+    email: tags['email'] || tags['contact:email'] || undefined,
+    openingHours: tags['opening_hours'] || undefined,
+    location: { lat, lng },
   };
-};
+}
 
-const getMockLeads = async (query: string, location: string, lang: string = 'en'): Promise<Lead[]> => {
-  await new Promise(r => setTimeout(r, 1200)); // Simulate delay
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  const mockData = [
-    {
-      displayName: { text: 'Elite Fitness Center' },
-      primaryTypeDisplayName: { text: 'Gym & Wellness' },
-      formattedAddress: '123 Zayed St, Cairo, Egypt',
-      nationalPhoneNumber: '+20 123 456 7890',
-      websiteUri: 'https://elitefitness.com',
-      rating: 4.8,
-      userRatingCount: 156,
-    },
-    {
-      displayName: { text: 'Downtown Dental Clinic' },
-      primaryTypeDisplayName: { text: 'Medical Clinic' },
-      formattedAddress: '45 Cairo Rd, Sheikh Zayed',
-      nationalPhoneNumber: '+20 111 222 3333',
-      rating: 4.2,
-      userRatingCount: 42,
-    },
-    {
-      displayName: { text: 'TechEdge Solutions' },
-      primaryTypeDisplayName: { text: 'Software Company' },
-      formattedAddress: 'Smart Village, Building B4',
-      websiteUri: 'https://techedge.io',
-      rating: 3.9,
-      userRatingCount: 12,
-    },
-    {
-      displayName: { text: 'Green Valley Real Estate' },
-      primaryTypeDisplayName: { text: 'Real Estate Agency' },
-      formattedAddress: 'Sheikh Zayed, District 5',
-      nationalPhoneNumber: '+20 155 678 9012',
-      websiteUri: 'https://greenvalley.com',
-      rating: 4.6,
-      userRatingCount: 98,
-    },
-    {
-      displayName: { text: 'Urban Coffee House' },
-      primaryTypeDisplayName: { text: 'Cafe & Restaurant' },
-      formattedAddress: 'El Mohandeseen, Cairo',
-      nationalPhoneNumber: '+20 100 222 3344',
-      rating: 4.3,
-      userRatingCount: 210,
-    },
-    {
-      displayName: { text: 'Bright Minds Nursery' },
-      primaryTypeDisplayName: { text: 'Education' },
-      formattedAddress: 'Sheikh Zayed City, Giza',
-      nationalPhoneNumber: '+20 122 333 4455',
-      rating: 4.7,
-      userRatingCount: 65,
-    },
-    {
-      displayName: { text: 'FixIt Auto Service' },
-      primaryTypeDisplayName: { text: 'Car Service' },
-      formattedAddress: '6th of October City',
-      nationalPhoneNumber: '+20 155 111 2233',
-      rating: 4.1,
-      userRatingCount: 88,
-    },
-    {
-      displayName: { text: 'SkinGlow Dermatology' },
-      primaryTypeDisplayName: { text: 'Dermatology Clinic' },
-      formattedAddress: 'Dokki, Cairo',
-      nationalPhoneNumber: '+20 199 888 7766',
-      rating: 4.5,
-      userRatingCount: 134,
-      websiteUri: 'https://skinglow.com',
-    },
-    {
-      displayName: { text: 'BuildPro Contractors' },
-      primaryTypeDisplayName: { text: 'Construction Company' },
-      formattedAddress: 'New Cairo, Fifth Settlement',
-      nationalPhoneNumber: '+20 111 555 7788',
-      rating: 4.0,
-      userRatingCount: 47,
-    },
-    {
-      displayName: { text: 'Nova Marketing Agency' },
-      primaryTypeDisplayName: { text: 'Marketing Agency' },
-      formattedAddress: 'Zamalek, Cairo',
-      websiteUri: 'https://novamarketing.io',
-      rating: 4.6,
-      userRatingCount: 73,
-      nationalPhoneNumber: '+20 102 909 8080',
-    }
-  ];
+function deriveCategory(tags: Record<string, string>): string {
+  for (const key of ['shop', 'amenity', 'leisure', 'tourism', 'office', 'craft']) {
+    if (tags[key]) return toTitleCase(tags[key].replace(/_/g, ' '));
+  }
+  return 'Business';
+}
 
-  return Promise.all(mockData.map(place => normalizePlace(place, lang)));
-};
+function toTitleCase(str: string): string {
+  return str.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function normaliseUrl(raw: string): string {
+  return raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+}
+
+function deduplicateByName(leads: RawLead[]): RawLead[] {
+  const seen = new Set<string>();
+  return leads.filter((l) => {
+    const key = l.name.toLowerCase().trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Fetches and normalises raw business data from OpenStreetMap.
+ * Returns RawLead[] — no scores, no AI. Scoring happens in route.ts.
+ */
+export async function fetchRawLeads(query: string, location: string): Promise<RawLead[]> {
+  const coords = await geocodeLocation(location);
+  const oQuery = buildOverpassQuery(query, coords.lat, coords.lng);
+  const elements = await fetchFromOverpass(oQuery);
+
+  const leads = elements
+    .map(normaliseElement)
+    .filter((l): l is RawLead => l !== null);
+
+  return deduplicateByName(leads);
+}

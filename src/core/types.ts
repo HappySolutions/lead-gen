@@ -12,10 +12,12 @@ export interface Lead {
   address: string;
   phone?: string;
   website?: string;
-  rating?: number;
-  reviews?: number;
+  email?: string;
+  rating?: number;   // OSM does not supply ratings; kept for future enrichment
+  reviews?: number;  // Same — kept undefined unless enriched
+  openingHours?: string;
   location: LeadLocation;
-  
+
   // Scoring
   score: number;
   scoreLabel: ScoreLabel;

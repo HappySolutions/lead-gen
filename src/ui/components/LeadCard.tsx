@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Lead } from '@/core/types';
-import { Star, MapPin, Globe, Phone, Info, Zap } from 'lucide-react';
+import { MapPin, Globe, Phone, Info, Zap, Clock } from 'lucide-react';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface LeadCardProps {
@@ -12,10 +12,11 @@ interface LeadCardProps {
 
 export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
   const { t, isRTL } = useTranslation();
-  const isHighPotential = lead.score >= 75;
+  const isHighPotential = lead.score >= 70;
 
-  const translatedScoreLabel = lead.score >= 75 ? t.leads.highPotential : (lead.score >= 40 ? t.leads.medium : t.leads.low);
-  
+  const translatedScoreLabel =
+    lead.score >= 70 ? t.leads.highPotential : lead.score >= 40 ? t.leads.medium : t.leads.low;
+
   return (
     <div style={styles.card} className="animate-in">
       <div style={styles.header}>
@@ -23,33 +24,34 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
           <h3 style={styles.title}>{lead.name}</h3>
           <span style={styles.category}>{lead.category}</span>
         </div>
-        <div style={{
-          ...styles.scoreBadge,
-          backgroundColor: isHighPotential ? '#f0fdf4' : '#f8fafc',
-          borderColor: isHighPotential ? '#bbf7d0' : '#e2e8f0',
-          color: isHighPotential ? '#15803d' : '#64748b',
-          flexDirection: isRTL ? 'row-reverse' : 'row',
-        }}>
+        <div
+          style={{
+            ...styles.scoreBadge,
+            backgroundColor: isHighPotential ? '#f0fdf4' : '#f8fafc',
+            borderColor: isHighPotential ? '#bbf7d0' : '#e2e8f0',
+            color: isHighPotential ? '#15803d' : '#64748b',
+            flexDirection: isRTL ? 'row-reverse' : 'row',
+          }}
+        >
           <Zap size={14} style={{ [isRTL ? 'marginLeft' : 'marginRight']: '6px' }} />
           <span style={styles.scoreText}>{lead.score}</span>
           <span style={styles.scoreLabel}>{translatedScoreLabel}</span>
         </div>
       </div>
 
-      <div style={styles.ratingRow}>
-        <div style={styles.stars}>
-          {[...Array(5)].map((_, i) => (
-            <Star
-              key={i}
-              size={14}
-              fill={i < Math.floor(lead.rating || 0) ? '#f59e0b' : 'none'}
-              color={i < Math.floor(lead.rating || 0) ? '#f59e0b' : '#cbd5e1'}
-            />
-          ))}
-          <span style={styles.ratingText}>{lead.rating}</span>
-          <span style={styles.reviewCount}>({lead.reviews || 0} {t.leads.reviews})</span>
+      {/* Only show rating row if real data exists */}
+      {(lead.rating || lead.reviews) && (
+        <div style={styles.ratingRow}>
+          {lead.rating && (
+            <span style={styles.ratingText}>★ {lead.rating.toFixed(1)}</span>
+          )}
+          {lead.reviews && (
+            <span style={styles.reviewCount}>
+              ({lead.reviews} {t.leads.reviews})
+            </span>
+          )}
         </div>
-      </div>
+      )}
 
       <div style={styles.details}>
         <div style={styles.detailItem}>
@@ -65,12 +67,40 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
         {lead.website && (
           <div style={styles.detailItem}>
             <Globe size={14} style={styles.detailIcon} />
-            <a href={lead.website} target="_blank" rel="noopener noreferrer" style={styles.link}>
-              {new URL(lead.website).hostname}
+            <a
+              href={lead.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={styles.link}
+            >
+              {(() => {
+                try {
+                  return new URL(lead.website).hostname;
+                } catch {
+                  return lead.website;
+                }
+              })()}
             </a>
           </div>
         )}
+        {lead.openingHours && (
+          <div style={styles.detailItem}>
+            <Clock size={14} style={styles.detailIcon} />
+            <span style={styles.hours}>{lead.openingHours}</span>
+          </div>
+        )}
       </div>
+
+      {/* Score explanation pills */}
+      {lead.scoreExplanation && (
+        <div style={styles.scoreFactors}>
+          {lead.scoreExplanation.split(' • ').map((factor) => (
+            <span key={factor} style={styles.factorPill}>
+              {factor}
+            </span>
+          ))}
+        </div>
+      )}
 
       {lead.aiInsights && (
         <div style={styles.aiBox}>
@@ -82,7 +112,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
         </div>
       )}
 
-      <button 
+      <button
         onClick={(e) => {
           e.preventDefault();
           onViewDetails?.(lead);
@@ -97,40 +127,37 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
 
 const styles: Record<string, React.CSSProperties> = {
   card: {
-    backgroundColor: 'var(--card)',
+    backgroundColor: '#fff',
     borderRadius: '16px',
     padding: '24px',
-    border: '1px solid var(--border)',
+    border: '1px solid #f1f5f9',
     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '14px',
     transition: 'all 0.3s ease',
-    position: 'relative',
-    textAlign: 'inherit',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: '12px',
   },
   mainInfo: {
     display: 'flex',
     flexDirection: 'column',
     gap: '4px',
-    flex: 1,
   },
   title: {
-    fontSize: '18px',
-    color: 'var(--foreground)',
+    fontSize: '17px',
+    color: '#0f172a',
     fontWeight: '600',
-    lineHeight: '1.4',
+    margin: 0,
   },
   category: {
-    fontSize: '13px',
-    color: 'var(--muted)',
+    fontSize: '12px',
+    color: '#64748b',
     fontWeight: '500',
+    textTransform: 'capitalize',
   },
   scoreBadge: {
     display: 'flex',
@@ -141,35 +168,28 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '13px',
     fontWeight: '600',
     flexShrink: 0,
+    gap: '4px',
   },
   scoreText: {
     fontSize: '15px',
-    margin: '0 4px',
   },
   scoreLabel: {
-    fontSize: '12px',
+    fontSize: '11px',
     opacity: 0.8,
   },
   ratingRow: {
     display: 'flex',
     alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  stars: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '2px',
+    gap: '6px',
   },
   ratingText: {
-    marginInlineStart: '8px',
     fontSize: '14px',
     fontWeight: '600',
-    color: 'var(--foreground)',
+    color: '#f59e0b',
   },
   reviewCount: {
-    marginInlineStart: '6px',
     fontSize: '13px',
-    color: 'var(--muted-foreground)',
+    color: '#94a3b8',
   },
   details: {
     display: 'flex',
@@ -178,32 +198,50 @@ const styles: Record<string, React.CSSProperties> = {
   },
   detailItem: {
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: '10px',
     fontSize: '13px',
-    color: 'var(--foreground)',
-    opacity: 0.8,
+    color: '#475569',
+    lineHeight: '1.5',
   },
   detailIcon: {
-    color: 'var(--muted-foreground)',
+    color: '#94a3b8',
     flexShrink: 0,
+    marginTop: '2px',
   },
   link: {
-    color: 'var(--primary)',
+    color: '#6366f1',
     textDecoration: 'none',
     fontWeight: '500',
-    wordBreak: 'break-all',
+  },
+  hours: {
+    fontSize: '12px',
+    color: '#64748b',
+    fontFamily: 'monospace',
+  },
+  scoreFactors: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '6px',
+  },
+  factorPill: {
+    fontSize: '11px',
+    backgroundColor: '#f1f5f9',
+    color: '#64748b',
+    padding: '2px 8px',
+    borderRadius: '100px',
+    fontWeight: '500',
   },
   aiBox: {
-    backgroundColor: 'var(--accent)',
+    backgroundColor: '#f5f3ff',
     padding: '12px',
     borderRadius: '10px',
-    border: '1px solid var(--border)',
+    border: '1px solid #ede9fe',
   },
   aiHeader: {
     fontSize: '10px',
     fontWeight: '700',
-    color: 'var(--primary)',
+    color: '#7c3aed',
     marginBottom: '6px',
     display: 'flex',
     alignItems: 'center',
@@ -212,23 +250,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   aiText: {
     fontSize: '12px',
-    color: 'var(--foreground)',
-    opacity: 0.9,
+    color: '#5b21b6',
     lineHeight: '1.5',
     margin: 0,
   },
   moreButton: {
-    marginTop: 'auto',
+    marginTop: '4px',
     width: '100%',
     padding: '10px',
     borderRadius: '8px',
-    border: '1px solid var(--border)',
+    border: '1px solid #e2e8f0',
     backgroundColor: 'transparent',
-    color: 'var(--foreground)',
-    fontSize: '14px',
+    color: '#475569',
+    fontSize: '13px',
     fontWeight: '600',
     cursor: 'pointer',
-    position: 'relative',
-    zIndex: 10,
-  }
+  },
 };
