@@ -12,17 +12,10 @@ export interface Lead {
   address: string;
   phone?: string;
   website?: string;
-  email?: string;           // from OSM or scraped from website
-  socialLinks?: {           // scraped from website
-    linkedin?: string;
-    instagram?: string;
-    facebook?: string;
-    twitter?: string;
-  };
-  description?: string;     // scraped meta description from website
-  openingHours?: string;
+  rating?: number;
+  reviews?: number;
   location: LeadLocation;
-
+  
   // Scoring
   score: number;
   scoreLabel: ScoreLabel;
@@ -33,8 +26,8 @@ export interface Lead {
 export interface SearchFilters {
   hasWebsite: boolean;
   hasPhone: boolean;
-  hasEmail: boolean;
-  sortBy: 'score' | 'name';
+  minRating: number;
+  sortBy: 'score' | 'rating' | 'reviews';
 }
 
 export interface SearchState {

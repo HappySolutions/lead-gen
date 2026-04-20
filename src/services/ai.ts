@@ -1,89 +1,69 @@
-/**
- * ai.ts — Outreach insight layer.
- *
- * Frames every lead as a SALES OPPORTUNITY — not a competitor profile.
- * The question is always: "How do I reach this business and what do I pitch?"
- *
- * Uses enriched data (email, social, description) for specific recommendations.
- * Server-side only. Called for top 5 leads after scoring.
- */
-
 import { Lead } from '../core/types';
 
 export interface AIAnalysis {
+  score: number;
+  explanation: string;
   insights: string;
 }
 
-export async function analyzeLeadQuality(lead: Partial<Lead>): Promise<AIAnalysis> {
-  if (process.env.ANTHROPIC_API_KEY) return callClaude(lead);
-  return heuristicInsight(lead);
-}
+export const analyzeLeadQuality = async (lead: Partial<Lead>, lang: string = 'en'): Promise<AIAnalysis> => {
+  // If we had a real Gemini API Key, we would call it here.
+  // For now, we simulate an AI evaluation based on business data.
+  
+  if (process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true') {
+    return simulateAIAnalysis(lead, lang);
+  }
 
-async function callClaude(lead: Partial<Lead>): Promise<AIAnalysis> {
-  const socialStr = lead.socialLinks
-    ? Object.entries(lead.socialLinks).filter(([, v]) => v).map(([k]) => k).join(', ')
-    : 'none';
-
-  const prompt = `You are a B2B sales coach. A salesperson found this business as a potential CLIENT to sell services to. Give them a 1–2 sentence outreach recommendation.
-
-Business: ${lead.name} (${lead.category})
-Location: ${lead.address}
-Contact: ${lead.email ? `email: ${lead.email}` : 'no email'}, ${lead.phone ? `phone: ${lead.phone}` : 'no phone'}
-Online: ${lead.website ? `website: ${lead.website}` : 'no website'}, social: ${socialStr}
-About: ${lead.description ?? 'no description available'}
-
-Focus on: (1) the best channel to reach them, (2) what gap or need they likely have that a vendor could fill.
-Be specific and actionable. Do NOT describe what their business does — tell the salesperson how to approach them.`;
-
+  // Placeholder for real Google AI (Gemini) implementation
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 150,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
+    // Real implementation would go here...
+    return simulateAIAnalysis(lead, lang);
+  } catch (error) {
+    console.error('AI Analysis failed:', error);
+    return { 
+      score: 50, 
+      explanation: lang === 'ar' ? 'تقييم الذكاء الاصطناعي غير متوفر حالياً' : 'AI evaluation unavailable', 
+      insights: '' 
+    };
+  }
+};
 
-    if (!res.ok) throw new Error(`Claude ${res.status}`);
-    const data = await res.json();
-    return { insights: data?.content?.[0]?.text?.trim() ?? '' };
-  } catch (err) {
-    console.error('[ai] Claude failed:', err);
-    return heuristicInsight(lead);
-  }
-}
+const simulateAIAnalysis = (lead: Partial<Lead>, lang: string): AIAnalysis => {
+  const hasWebsite = !!lead.website;
+  const hasHighRating = (lead.rating || 0) > 4.2;
+  const isEstablished = (lead.reviews || 0) > 50;
 
-function heuristicInsight(lead: Partial<Lead>): AIAnalysis {
-  const email = lead.email;
-  const phone = lead.phone;
-  const website = lead.website;
-  const linkedin = lead.socialLinks?.linkedin;
-  const instagram = lead.socialLinks?.instagram;
-  const hasDesc = !!lead.description;
+  if (hasWebsite && hasHighRating && isEstablished) {
+    return {
+      score: 95,
+      explanation: lang === 'ar' 
+        ? 'تواجد رقمي استثنائي مع أدلة اجتماعية قوية ورضا عالٍ من العملاء.' 
+        : 'Exceptional digital presence with strong social proof and high customer satisfaction.',
+      insights: lang === 'ar'
+        ? 'سلطة العلامة التجارية عالية؛ من المرجح أن يكون قائداً في مجاله.'
+        : 'Brand authority is high; likely a top-tier industry leader.'
+    };
+  }
 
-  if (email) {
-    return { insights: `Send a cold email to ${email} — reference their ${lead.category?.toLowerCase()} business and propose a specific service. Email gives them time to evaluate before responding.` };
+  if (hasWebsite || (hasHighRating && isEstablished)) {
+    return {
+      score: 75,
+      explanation: lang === 'ar'
+        ? 'عملية احترافية ذات مصداقية راسخة ونشاط مستمر.'
+        : 'Professional operation with established credibility and consistent activity.',
+      insights: lang === 'ar'
+        ? 'عميل واعد مع عمليات تجارية نشطة وانطباع عام إيجابي.'
+        : 'Solid lead with active business operations and positive public sentiment.'
+    };
   }
-  if (linkedin) {
-    return { insights: `No public email found. Connect on LinkedIn and open with a relevant observation about their business before pitching.` };
-  }
-  if (phone && !website) {
-    return { insights: `Call ${phone} directly — this business has no website, which is a clear opening to pitch web or digital services. Keep the call under 2 minutes.` };
-  }
-  if (phone) {
-    return { insights: `Call ${phone} and ask for the owner or manager. ${hasDesc ? 'Their site description suggests they are active — call during opening hours.' : 'Confirm they are the decision-maker before pitching.'}` };
-  }
-  if (instagram) {
-    return { insights: `No phone or email listed. Send a DM via Instagram — keep it short and personal, reference something specific about their profile.` };
-  }
-  if (website) {
-    return { insights: `Visit their website and look for a contact form, team page, or staff email. A personalised email beats a generic contact form submission.` };
-  }
-  return { insights: `Minimal online presence — this business may not be digitally active. A walk-in during business hours or a local directory lookup could uncover a direct contact.` };
-}
+
+  return {
+    score: 55,
+    explanation: lang === 'ar'
+      ? 'بصمة تجارية قياسية مع مقاييس رؤية أساسية.'
+      : 'Standard business footprint with baseline visibility metrics.',
+    insights: lang === 'ar'
+      ? 'كيان نشط، على الرغم من وجود فرص لتحسين التفاعل الرقمي.'
+      : 'Active entity, though digital optimization opportunities exist to increase engagement.'
+  };
+};
