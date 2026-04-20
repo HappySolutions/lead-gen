@@ -20,6 +20,7 @@ export default function Home() {
   const [filters, setFilters] = useState<SearchFilters>({
     hasWebsite: false,
     hasPhone: false,
+    hasEmail: false,
     minRating: 0,
     sortBy: 'score',
   });
