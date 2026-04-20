@@ -24,7 +24,7 @@ export interface Lead {
   description?: string;     // scraped meta description from website
   openingHours?: string;
   location: LeadLocation;
-
+  
   // Scoring
   score: number;
   scoreLabel: ScoreLabel;
