@@ -1,71 +1,68 @@
+/**
+ * scoring.ts — Pure scoring logic. No I/O, no side effects.
+ *
+ * Score breakdown (all from real data only):
+ *   - Email found        → +35 pts  (highest: email = direct outreach)
+ *   - Phone found        → +20 pts
+ *   - Website found      → +15 pts
+ *   - Social links found → +15 pts  (LinkedIn, Instagram, etc.)
+ *   - Description found  → +10 pts  (signals a maintained web presence)
+ *   - Opening hours      → + 5 pts
+ *
+ * Total max = 100. Every point comes from a real field — nothing is assumed.
+ */
+
 import { Lead, ScoreLabel } from './types';
 
-export interface ScoringWeights {
-  quality: number;      // weight for rating and review count
-  completeness: number; // weight for address, phone, website
-  ai: number;           // weight for AI qualitative assessment
+interface ScoringField {
+  key: keyof Lead | 'socialLinks';
+  points: number;
+  label: string;
 }
 
-export const DEFAULT_WEIGHTS: ScoringWeights = {
-  quality: 0.45,
-  completeness: 0.35,
-  ai: 0.20,
-};
+const SCORING_FIELDS: ScoringField[] = [
+  { key: 'email', points: 35, label: 'Email' },
+  { key: 'phone', points: 20, label: 'Phone' },
+  { key: 'website', points: 15, label: 'Website' },
+  { key: 'socialLinks', points: 15, label: 'Social' },
+  { key: 'description', points: 10, label: 'Description' },
+  { key: 'openingHours', points: 5, label: 'Hours' },
+];
 
-export const calculateBaseScore = (
-  lead: Partial<Lead>,
-  weights: ScoringWeights = DEFAULT_WEIGHTS
-): { score: number; explanation: string } => {
-  let quantitativeScore = 0;
-  let quantitativePoints = 0;
-  const explanations: string[] = [];
+export interface BaseScoreResult {
+  score: number;
+  explanation: string;
+}
 
-  // 1. Quality (Rating & Reviews)
-  if (lead.rating) {
-    const ratingScore = (lead.rating / 5) * 100;
-    quantitativePoints += 70; // Rating is out of 70 in the quality section
-    quantitativeScore += (ratingScore * 0.7);
-    explanations.push(`Rating: ${lead.rating}/5`);
-  }
+export function calculateBaseScore(lead: Partial<Lead>): BaseScoreResult {
+  let score = 0;
+  const factors: string[] = [];
 
-  if (lead.reviews) {
-    // Logarithmic scale for reviews: 100+ is max points
-    const reviewScore = Math.min(Math.log10(lead.reviews + 1) / 2 * 100, 100);
-    quantitativePoints += 30; // Reviews are out of 30 in the quality section
-    quantitativeScore += (reviewScore * 0.3);
-    explanations.push(`${lead.reviews} reviews`);
-  } else {
-    quantitativePoints += 30;
-  }
+  for (const field of SCORING_FIELDS) {
+    let hasValue = false;
 
-  const qualitySubtotal = quantitativePoints > 0 ? (quantitativeScore / quantitativePoints) * 100 : 50;
-
-  // 2. Completeness
-  let completenessScore = 0;
-  const completenessChecks = [
-    { key: 'address', weight: 0.4, label: 'Address' },
-    { key: 'phone', weight: 0.3, label: 'Phone' },
-    { key: 'website', weight: 0.3, label: 'Website' },
-  ];
-
-  completenessChecks.forEach(check => {
-    if (lead[check.key as keyof Lead]) {
-      completenessScore += check.weight * 100;
-      explanations.push(`Has ${check.label}`);
+    if (field.key === 'socialLinks') {
+      const sl = lead.socialLinks;
+      hasValue = !!(sl && Object.values(sl).some(Boolean));
+    } else {
+      const val = lead[field.key as keyof Lead];
+      hasValue = !!(val && String(val).trim().length > 0);
     }
-  });
 
-  // Calculate final weighted score (excluding AI for now, or assume AI score of 50 if missing)
-  const finalScore = (qualitySubtotal * weights.quality) + (completenessScore * weights.completeness) + (50 * weights.ai);
+    if (hasValue) {
+      score += field.points;
+      factors.push(field.label);
+    }
+  }
 
   return {
-    score: Math.round(finalScore),
-    explanation: explanations.join(' • '),
+    score: Math.min(100, score),
+    explanation: factors.length > 0 ? factors.join(' • ') : 'Basic listing',
   };
-};
+}
 
-export const getScoreLabel = (score: number): ScoreLabel => {
-  if (score >= 75) return 'High Potential';
-  if (score >= 40) return 'Medium';
+export function getScoreLabel(score: number): ScoreLabel {
+  if (score >= 70) return 'High Potential';
+  if (score >= 35) return 'Medium';
   return 'Low';
-};
+}
