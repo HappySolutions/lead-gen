@@ -12,9 +12,14 @@ export interface Lead {
   address: string;
   phone?: string;
   website?: string;
-  email?: string;
-  rating?: number;   // OSM does not supply ratings; kept for future enrichment
-  reviews?: number;  // Same — kept undefined unless enriched
+  email?: string;           // from OSM or scraped from website
+  socialLinks?: {           // scraped from website
+    linkedin?: string;
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+  };
+  description?: string;     // scraped meta description from website
   openingHours?: string;
   location: LeadLocation;
 
@@ -28,8 +33,8 @@ export interface Lead {
 export interface SearchFilters {
   hasWebsite: boolean;
   hasPhone: boolean;
-  minRating: number;
-  sortBy: 'score' | 'rating' | 'reviews';
+  hasEmail: boolean;
+  sortBy: 'score' | 'name';
 }
 
 export interface SearchState {

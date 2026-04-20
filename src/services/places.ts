@@ -1,55 +1,27 @@
 /**
- * places.ts — Data fetching layer. Pure I/O, no scoring, no AI.
+ * places.ts — OSM data fetching. Pure I/O, no scoring, no AI, no enrichment.
  *
- * Responsibilities (this file only):
- *   1. Geocode a location string → lat/lng  (Nominatim)
- *   2. Fetch matching businesses            (Overpass API)
- *   3. Normalise raw OSM elements → RawLead
+ * Responsibilities:
+ *   1. Geocode location string → lat/lng   (Nominatim)
+ *   2. Fetch businesses by OSM tags        (Overpass API)
+ *   3. Normalise raw elements → RawLead
  *
- * What this file does NOT do:
- *   - Score leads        → core/scoring.ts
- *   - Run AI analysis    → services/ai.ts
- *   - Merge AI results   → app/api/leads/route.ts
- *
- * All network calls are server-side only. This module is never imported
- * by any UI component — only by /app/api/leads/route.ts.
+ * Tag resolution (any niche → OSM tags) is handled by tagResolver.ts.
+ * All calls are server-side only — never imported by UI components.
  */
+
+import { resolveOSMTags } from './tagResolver';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-const FETCH_LIMIT = 25; // keep small to avoid Overpass timeouts
-
-// ─── OSM category map ─────────────────────────────────────────────────────────
-
-const CATEGORY_MAP: Record<string, string[]> = {
-  gym: ['leisure=fitness_centre', 'leisure=sports_centre'],
-  clinic: ['amenity=clinic', 'amenity=doctors', 'amenity=healthcare'],
-  hospital: ['amenity=hospital'],
-  dental: ['amenity=dentist'],
-  pharmacy: ['amenity=pharmacy'],
-  restaurant: ['amenity=restaurant'],
-  cafe: ['amenity=cafe'],
-  hotel: ['tourism=hotel'],
-  school: ['amenity=school'],
-  bank: ['amenity=bank'],
-  salon: ['shop=hairdresser', 'shop=beauty'],
-  supermarket: ['shop=supermarket'],
-  bakery: ['shop=bakery'],
-  mechanic: ['shop=car_repair'],
-  lawyer: ['office=lawyer'],
-  accountant: ['office=accountant'],
-  it: ['office=it', 'office=company'],
-  real_estate: ['office=estate_agent'],
-  printing: ['shop=copyshop', 'shop=printer'],
-  kindergarten: ['amenity=kindergarten'],
-};
+const FETCH_LIMIT = 30;
+const SEARCH_RADIUS = 5000; // metres — wider net, route.ts caps final output
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface NominatimResult {
   lat: string;
   lon: string;
-  display_name: string;
 }
 
 interface OverpassElement {
@@ -61,7 +33,6 @@ interface OverpassElement {
   tags?: Record<string, string>;
 }
 
-/** Normalised output from this layer — no scores yet */
 export interface RawLead {
   osmId: string;
   name: string;
@@ -71,11 +42,10 @@ export interface RawLead {
   website?: string;
   email?: string;
   openingHours?: string;
-  // OSM does not supply ratings or reviews — these fields are intentionally absent
   location: { lat: number; lng: number };
 }
 
-// ─── Step 1: Geocode ──────────────────────────────────────────────────────────
+// ─── Geocode ──────────────────────────────────────────────────────────────────
 
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number }> {
   const url = `${NOMINATIM_URL}/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
@@ -84,49 +54,47 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lng: nu
       'User-Agent': 'LeadGeni-MVP/1.0 (contact@leadgeni.io)',
       'Accept-Language': 'en',
     },
+    cache: 'no-store',
   });
 
-  if (!res.ok) throw new Error(`Nominatim error ${res.status}: service unavailable`);
+  if (!res.ok) throw new Error(`Nominatim error ${res.status}`);
 
   const data: NominatimResult[] = await res.json();
   if (!data?.length) {
-    throw new Error(`Location not found: "${location}". Try a city name or add a country.`);
+    throw new Error(`Location not found: "${location}". Try a more specific city name.`);
   }
 
   return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
 }
 
-// ─── Step 2: Build + run Overpass query ──────────────────────────────────────
+// ─── Overpass query builder ───────────────────────────────────────────────────
 
-function buildOverpassQuery(query: string, lat: number, lng: number, radiusM = 3000): string {
-  const lower = query.toLowerCase();
-  const matchedKey = Object.keys(CATEGORY_MAP).find((k) => lower.includes(k));
-  const tagFilters = matchedKey ? CATEGORY_MAP[matchedKey] : [`name~"${query}",i`];
+function buildOverpassQuery(tags: string[], lat: number, lng: number): string {
+  const around = `(around:${SEARCH_RADIUS},${lat},${lng})`;
 
-  const around = `(around:${radiusM},${lat},${lng})`;
-
-  const unions = tagFilters
+  const unions = tags
     .flatMap((tag) => {
-      const eqIdx = tag.indexOf('=');
-      if (eqIdx !== -1) {
-        const k = tag.slice(0, eqIdx);
-        const v = tag.slice(eqIdx + 1);
-        return [`node[${k}=${v}]${around};`, `way[${k}=${v}]${around};`];
-      }
-      return [`node[${tag}]${around};`, `way[${tag}]${around};`];
+      const eq = tag.indexOf('=');
+      const k = tag.slice(0, eq);
+      const v = tag.slice(eq + 1);
+      return [
+        `node[${k}=${v}]${around};`,
+        `way[${k}=${v}]${around};`,
+      ];
     })
     .join('\n  ');
 
-  return `[out:json][timeout:30][maxsize:536870912];\n(\n  ${unions}\n);\nout center ${FETCH_LIMIT};`;
+  return `[out:json][timeout:30][maxsize:268435456];\n(\n  ${unions}\n);\nout center ${FETCH_LIMIT};`;
 }
+
+// ─── Overpass fetch ───────────────────────────────────────────────────────────
 
 async function fetchFromOverpass(query: string): Promise<OverpassElement[]> {
   const url = `${OVERPASS_URL}?data=${encodeURIComponent(query)}`;
-  console.log('[Overpass] Query URL:', url);
-  console.log('[Overpass] Raw query:\n', query);
+  console.log('[Overpass] query:\n', query);
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 29_000); // 29s client timeout
+  const timeout = setTimeout(() => controller.abort(), 28_000);
 
   let res: Response;
   try {
@@ -140,13 +108,13 @@ async function fetchFromOverpass(query: string): Promise<OverpassElement[]> {
     clearTimeout(timeout);
   }
 
-  if (!res.ok) throw new Error(`Overpass error ${res.status}: try again shortly`);
+  if (!res.ok) throw new Error(`Overpass error ${res.status}`);
 
   const data = await res.json();
   return (data.elements ?? []) as OverpassElement[];
 }
 
-// ─── Step 3: Normalise OSM element → RawLead ─────────────────────────────────
+// ─── Normalise OSM element → RawLead ─────────────────────────────────────────
 
 function normaliseElement(el: OverpassElement): RawLead | null {
   const tags = el.tags ?? {};
@@ -189,7 +157,7 @@ function normaliseElement(el: OverpassElement): RawLead | null {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function deriveCategory(tags: Record<string, string>): string {
-  for (const key of ['shop', 'amenity', 'leisure', 'tourism', 'office', 'craft']) {
+  for (const key of ['amenity', 'shop', 'leisure', 'tourism', 'office', 'craft', 'man_made']) {
     if (tags[key]) return toTitleCase(tags[key].replace(/_/g, ' '));
   }
   return 'Business';
@@ -200,7 +168,10 @@ function toTitleCase(str: string): string {
 }
 
 function normaliseUrl(raw: string): string {
-  return raw.startsWith('http://') || raw.startsWith('https://') ? raw : `https://${raw}`;
+  const trimmed = raw.trim();
+  return trimmed.startsWith('http://') || trimmed.startsWith('https://')
+    ? trimmed
+    : `https://${trimmed}`;
 }
 
 function deduplicateByName(leads: RawLead[]): RawLead[] {
@@ -216,12 +187,19 @@ function deduplicateByName(leads: RawLead[]): RawLead[] {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Fetches and normalises raw business data from OpenStreetMap.
- * Returns RawLead[] — no scores, no AI. Scoring happens in route.ts.
+ * Fetches and normalises raw OSM business data.
+ * Returns RawLead[] — no scores, no enrichment, no AI.
  */
 export async function fetchRawLeads(query: string, location: string): Promise<RawLead[]> {
-  const coords = await geocodeLocation(location);
-  const oQuery = buildOverpassQuery(query, coords.lat, coords.lng);
+  // Run geocoding and tag resolution in parallel
+  const [coords, tags] = await Promise.all([
+    geocodeLocation(location),
+    resolveOSMTags(query),
+  ]);
+
+  console.log(`[places] Tags for "${query}":`, tags);
+
+  const oQuery = buildOverpassQuery(tags, coords.lat, coords.lng);
   const elements = await fetchFromOverpass(oQuery);
 
   const leads = elements
