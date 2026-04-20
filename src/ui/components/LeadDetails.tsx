@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Lead } from '@/core/types';
-import { X, MapPin, Globe, Phone, Info, ExternalLink } from 'lucide-react';
+import { X, MapPin, Globe, Phone, Info, Zap, ExternalLink } from 'lucide-react';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface LeadDetailsProps {
@@ -16,8 +16,8 @@ export const LeadDetails: React.FC<LeadDetailsProps> = ({ lead, onClose }) => {
 
   return (
     <div style={styles.overlay} onClick={onClose} className="fade-in">
-      <div
-        style={styles.modal}
+      <div 
+        style={styles.modal} 
         onClick={(e) => e.stopPropagation()}
         className="slide-up"
       >
@@ -29,9 +29,20 @@ export const LeadDetails: React.FC<LeadDetailsProps> = ({ lead, onClose }) => {
           <div style={{ textAlign: isRTL ? 'right' : 'left' }}>
             <span style={styles.categoryBadge}>{lead.category}</span>
             <h2 style={styles.title}>{lead.name}</h2>
-            {lead.description && (
-              <p style={styles.description}>{lead.description}</p>
-            )}
+            <div style={{ ...styles.ratingRow, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+              <div style={{ display: 'flex', gap: '2px' }}>
+                {[...Array(5)].map((_, i) => (
+                  <Zap
+                    key={i}
+                    size={14}
+                    fill={i < Math.floor(lead.rating || 0) ? '#f59e0b' : 'none'}
+                    color={i < Math.floor(lead.rating || 0) ? '#f59e0b' : '#cbd5e1'}
+                  />
+                ))}
+              </div>
+              <span style={styles.ratingText}>{lead.rating}</span>
+              <span style={styles.reviewsText}>({lead.reviews} {t.leads.reviews})</span>
+            </div>
           </div>
           <div style={styles.scoreCircle}>
             <span style={styles.scoreValue}>{lead.score}</span>
@@ -63,8 +74,8 @@ export const LeadDetails: React.FC<LeadDetailsProps> = ({ lead, onClose }) => {
                   </div>
                 )}
               </div>
-
-              <a
+              
+              <a 
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lead.name + ' ' + lead.address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -82,7 +93,7 @@ export const LeadDetails: React.FC<LeadDetailsProps> = ({ lead, onClose }) => {
                 <ScoreBar label={isRTL ? 'الاكتمال' : 'Completeness'} value={lead.website && lead.phone ? 100 : 70} color="#10b981" />
                 <ScoreBar label={isRTL ? 'مصداقية AI' : 'AI Credibility'} value={lead.score >= 75 ? 95 : 55} color="#f59e0b" />
               </div>
-
+              
               {lead.aiInsights && (
                 <div style={styles.aiInsights}>
                   <div style={{ ...styles.aiLabel, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
@@ -181,11 +192,19 @@ const styles: Record<string, React.CSSProperties> = {
     margin: '0 0 12px 0',
     letterSpacing: '-0.02em',
   },
-  description: {
+  ratingRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+  },
+  ratingText: {
+    fontSize: '16px',
+    fontWeight: '700',
+    color: '#334155',
+  },
+  reviewsText: {
     fontSize: '14px',
-    color: '#64748b',
-    lineHeight: '1.6',
-    margin: '4px 0 0 0',
+    color: '#94a3b8',
   },
   scoreCircle: {
     backgroundColor: '#0f172a',
