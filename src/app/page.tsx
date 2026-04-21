@@ -7,12 +7,15 @@ import { Filters } from '@/ui/components/Filters';
 import { LeadDetails } from '@/ui/components/LeadDetails';
 import { LanguageToggle } from '@/ui/components/LanguageToggle';
 import { ThemeToggle } from '@/ui/components/ThemeToggle';
+import { BillingDialog } from '@/ui/components/BillingDialog';
 import { useTranslation } from '@/core/i18n/useTranslation';
 import { Lead, SearchFilters } from '@/core/types';
 import { Download, Target, TrendingUp, LayoutDashboard, Lock } from 'lucide-react';
 
 // ─── Free tier: first 5 leads show full data, rest are blurred ───────────────
 const FREE_TIER_LIMIT = 5;
+const CREDIT_PACK_SIZE = 10;
+const LS_CREDITS_KEY = 'leadgeni_credits';
 
 export default function Home() {
   const { t, language } = useTranslation();
@@ -20,15 +23,36 @@ export default function Home() {
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [isUnlocked,   setIsUnlocked]   = useState(false); // paid tier toggle
   const [lastSearch,   setLastSearch]   = useState<{ query: string; location: string; service: string } | null>(null);
   const lastSearchRef = useRef<{ query: string; location: string; service: string } | null>(null);
+  const [credits,      setCredits]      = useState<number>(0);
+  const [billingOpen,  setBillingOpen]  = useState(false);
   const [filters,      setFilters]      = useState<SearchFilters>({
     hasWebsite: false,
     hasPhone:   false,
     hasEmail:   false,
     sortBy:     'score',
   });
+
+  const isUnlocked = credits > 0;
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_CREDITS_KEY);
+      const parsed = raw ? Number.parseInt(raw, 10) : 0;
+      setCredits(Number.isFinite(parsed) && parsed > 0 ? parsed : 0);
+    } catch {
+      setCredits(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_CREDITS_KEY, String(Math.max(0, Math.floor(credits))));
+    } catch {
+      // ignore
+    }
+  }, [credits]);
 
   const runSearch = async (
     query: string,
@@ -49,6 +73,9 @@ export default function Home() {
         throw new Error(body.error ?? 'Search failed');
       }
       setLeads(await resp.json());
+      if (isUnlocked) {
+        setCredits((c) => Math.max(0, c - 1));
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -102,9 +129,23 @@ export default function Home() {
   };
 
   const lockedCount = Math.max(0, processedLeads.length - FREE_TIER_LIMIT);
+  const whatsappHref = `https://wa.me/?text=${encodeURIComponent(
+    language === 'ar'
+      ? 'مرحباً، أريد تفعيل باقة LeadGeni لفتح جميع العملاء (10 عمليات بحث).'
+      : 'Hi, I want to activate the LeadGeni plan to unlock all leads (10 searches).'
+  )}`;
 
   return (
     <main style={styles.container}>
+      <BillingDialog
+        open={billingOpen}
+        onClose={() => setBillingOpen(false)}
+        whatsappHref={whatsappHref}
+        onPaymentConfirmed={() => {
+          setCredits(CREDIT_PACK_SIZE);
+          setBillingOpen(false);
+        }}
+      />
 
       {/* Header */}
       <header style={styles.header}>
@@ -122,6 +163,12 @@ export default function Home() {
             <div style={styles.stat}>
               <TrendingUp size={14} color="#10b981" />
               <span>{leads.length} {t.leads.found}</span>
+            </div>
+          )}
+          {isUnlocked && (
+            <div style={styles.stat}>
+              <span style={{ fontWeight: 800 }}>{credits}</span>
+              <span style={{ opacity: 0.9 }}>{language === 'ar' ? 'عمليات بحث متبقية' : 'searches left'}</span>
             </div>
           )}
         </div>
@@ -168,7 +215,7 @@ export default function Home() {
                 <strong>{t.leads.upgradeHiddenLeads(lockedCount)}</strong> {t.leads.upgradeDescription}
               </div>
               {/* Replace onClick with your Stripe/payment link */}
-              <button onClick={() => setIsUnlocked(true)} style={styles.upgradeBtn}>
+              <button onClick={() => setBillingOpen(true)} style={styles.upgradeBtn}>
                 {t.leads.unlockAllLeads}
               </button>
             </div>
