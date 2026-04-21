@@ -14,9 +14,9 @@ export const ThemeToggle = () => {
       aria-label="Toggle theme"
     >
       {theme === 'light' ? (
-        <Moon size={20} color="#475569" />
+        <Moon size={20} color="var(--secondary-foreground)" />
       ) : (
-        <Sun size={20} color="#fbbf24" />
+        <Sun size={20} color="var(--secondary-foreground)" />
       )}
     </button>
   );

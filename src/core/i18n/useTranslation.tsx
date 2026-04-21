@@ -15,12 +15,19 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // IMPORTANT: keep initial render stable for SSR hydration.
+  // We intentionally DO NOT read localStorage in the initializer.
   const [language, setLanguage] = useState<Language>('en');
 
   useEffect(() => {
-    const saved = localStorage.getItem('leadgeni_lang') as Language;
-    if (saved && (saved === 'en' || saved === 'ar')) {
-      setLanguage(saved);
+    try {
+      const saved = localStorage.getItem('leadgeni_lang') as Language;
+      if (saved === 'en' || saved === 'ar') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setLanguage(saved);
+      }
+    } catch {
+      // ignore (e.g. blocked storage)
     }
   }, []);
 

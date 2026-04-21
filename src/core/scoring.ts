@@ -1,157 +1,203 @@
 /**
- * scoring.ts — Pure scoring logic, no I/O, no side effects.
+ * scoring.ts — Service-aware scoring.
  *
- * Responsibilities:
- *   - calculateBaseScore()  → 0–100 score from real lead fields only
- *   - applyAIScore()        → merges an optional AI score into the base score
- *   - getScoreLabel()       → maps numeric score to a label
+ * The same business scores differently depending on what service you sell.
+ * A restaurant with no website is a 90 for a web designer, a 20 for a POS vendor.
  *
- * Rules:
- *   - NEVER generate or assume fake values
- *   - If a field is absent → it simply doesn't contribute to the score
- *   - If AI score is absent → AI weight is redistributed to completeness
+ * calculateServiceScore() is the main function.
+ * It detects what the seller offers and scores gaps accordingly.
  */
 
 import { Lead, ScoreLabel } from './types';
 
-// ─── Weight configuration ─────────────────────────────────────────────────────
-
-interface ScoringWeights {
-  completeness: number; // presence of phone, website, address, hours
-  quality: number;      // rating + review count (only when real data exists)
-  ai: number;           // AI qualitative score (only when AI ran successfully)
+export interface ScoreResult {
+  score: number;
+  explanation: string;
+  serviceGaps: string[];
 }
 
-// Base weights — must sum to 1.0
-const BASE_WEIGHTS: ScoringWeights = {
-  completeness: 0.55,
-  quality: 0.25,
-  ai: 0.20,
+// ─── Service category detection ───────────────────────────────────────────────
+// Maps what the user says they sell → which fields are "gaps" to score high
+
+interface ServiceProfile {
+  // Fields whose ABSENCE indicates a high-value gap
+  missingFieldBonus: Array<{ field: keyof Lead | 'socialLinks'; points: number; label: string }>;
+  // Fields whose PRESENCE indicates a good fit
+  presentFieldBonus: Array<{ field: keyof Lead | 'socialLinks'; points: number; label: string }>;
+}
+
+const SERVICE_PROFILES: Record<string, ServiceProfile> = {
+  'web design': {
+    missingFieldBonus: [
+      { field: 'website',     points: 50, label: 'No website — perfect target' },
+    ],
+    presentFieldBonus: [
+      { field: 'phone',       points: 25, label: 'Reachable by phone' },
+      { field: 'email',       points: 20, label: 'Has email' },
+    ],
+  },
+  'website': {
+    missingFieldBonus: [
+      { field: 'website',     points: 50, label: 'No website — perfect target' },
+    ],
+    presentFieldBonus: [
+      { field: 'phone',       points: 25, label: 'Reachable by phone' },
+      { field: 'email',       points: 20, label: 'Has email' },
+    ],
+  },
+  'social media': {
+    missingFieldBonus: [
+      { field: 'socialLinks', points: 45, label: 'No social media presence' },
+    ],
+    presentFieldBonus: [
+      { field: 'website',     points: 20, label: 'Has website' },
+      { field: 'phone',       points: 20, label: 'Reachable by phone' },
+      { field: 'email',       points: 15, label: 'Has email' },
+    ],
+  },
+  'seo': {
+    missingFieldBonus: [],
+    presentFieldBonus: [
+      { field: 'website',     points: 40, label: 'Has website to optimise' },
+      { field: 'phone',       points: 25, label: 'Reachable by phone' },
+      { field: 'email',       points: 20, label: 'Has email' },
+      { field: 'description', points: 15, label: 'Has web presence' },
+    ],
+  },
+  'accounting': {
+    missingFieldBonus: [],
+    presentFieldBonus: [
+      { field: 'phone',       points: 35, label: 'Reachable by phone' },
+      { field: 'email',       points: 30, label: 'Has email' },
+      { field: 'website',     points: 20, label: 'Established business' },
+      { field: 'openingHours',points: 15, label: 'Active business' },
+    ],
+  },
+  'software': {
+    missingFieldBonus: [],
+    presentFieldBonus: [
+      { field: 'website',     points: 30, label: 'Tech-aware business' },
+      { field: 'email',       points: 30, label: 'Has email' },
+      { field: 'phone',       points: 25, label: 'Reachable' },
+      { field: 'description', points: 15, label: 'Established online' },
+    ],
+  },
+  'crm': {
+    missingFieldBonus: [],
+    presentFieldBonus: [
+      { field: 'website',     points: 30, label: 'Tech-aware business' },
+      { field: 'email',       points: 30, label: 'Has email' },
+      { field: 'phone',       points: 25, label: 'Reachable' },
+      { field: 'description', points: 15, label: 'Established online' },
+    ],
+  },
+  'marketing': {
+    missingFieldBonus: [
+      { field: 'socialLinks', points: 25, label: 'Weak social presence' },
+    ],
+    presentFieldBonus: [
+      { field: 'website',     points: 25, label: 'Has website' },
+      { field: 'phone',       points: 20, label: 'Reachable' },
+      { field: 'email',       points: 20, label: 'Has email' },
+      { field: 'openingHours',points: 10, label: 'Active business' },
+    ],
+  },
+  'photography': {
+    missingFieldBonus: [
+      { field: 'socialLinks', points: 30, label: 'No visual social presence' },
+    ],
+    presentFieldBonus: [
+      { field: 'phone',       points: 30, label: 'Reachable by phone' },
+      { field: 'email',       points: 25, label: 'Has email' },
+      { field: 'website',     points: 15, label: 'Has website' },
+    ],
+  },
+  'printing': {
+    missingFieldBonus: [],
+    presentFieldBonus: [
+      { field: 'phone',       points: 40, label: 'Reachable by phone' },
+      { field: 'email',       points: 30, label: 'Has email' },
+      { field: 'openingHours',points: 15, label: 'Active business' },
+      { field: 'website',     points: 15, label: 'Established online' },
+    ],
+  },
 };
 
-// ─── Completeness sub-scoring ─────────────────────────────────────────────────
+// ─── Default profile (generic reachability) ───────────────────────────────────
 
-interface CompletenessField {
-  key: keyof Lead;
-  weight: number; // relative weight within completeness score (must sum to 1.0)
-  label: string;
+const DEFAULT_PROFILE: ServiceProfile = {
+  missingFieldBonus: [],
+  presentFieldBonus: [
+    { field: 'email',        points: 35, label: 'Has email' },
+    { field: 'phone',        points: 25, label: 'Has phone' },
+    { field: 'website',      points: 20, label: 'Has website' },
+    { field: 'socialLinks',  points: 10, label: 'Has social media' },
+    { field: 'openingHours', points: 10, label: 'Has opening hours' },
+  ],
+};
+
+// ─── Detect which service profile to use ─────────────────────────────────────
+
+function detectProfile(service: string): ServiceProfile {
+  const lower = service.toLowerCase();
+  const key = Object.keys(SERVICE_PROFILES).find(
+    (k) => lower.includes(k) || k.includes(lower)
+  );
+  return key ? SERVICE_PROFILES[key] : DEFAULT_PROFILE;
 }
 
-const COMPLETENESS_FIELDS: CompletenessField[] = [
-  { key: 'address', weight: 0.30, label: 'Address' },
-  { key: 'phone', weight: 0.30, label: 'Phone' },
-  { key: 'website', weight: 0.25, label: 'Website' },
-  { key: 'openingHours', weight: 0.15, label: 'Hours' },
-];
+// ─── Field presence check ─────────────────────────────────────────────────────
 
-function scoreCompleteness(lead: Partial<Lead>): { score: number; factors: string[] } {
-  let score = 0;
-  const factors: string[] = [];
-
-  for (const field of COMPLETENESS_FIELDS) {
-    const val = lead[field.key];
-    if (val && String(val).trim().length > 0) {
-      score += field.weight * 100;
-      factors.push(field.label);
-    }
+function hasField(lead: Partial<Lead>, field: keyof Lead | 'socialLinks'): boolean {
+  if (field === 'socialLinks') {
+    const sl = lead.socialLinks;
+    return !!(sl && Object.values(sl).some(Boolean));
   }
-
-  return { score, factors };
-}
-
-// ─── Quality sub-scoring (rating + reviews) ───────────────────────────────────
-
-function scoreQuality(lead: Partial<Lead>): { score: number; hasData: boolean; factors: string[] } {
-  const factors: string[] = [];
-  let ratingScore = 0;
-  let reviewScore = 0;
-  let hasRating = false;
-  let hasReviews = false;
-
-  if (lead.rating && lead.rating > 0) {
-    ratingScore = (lead.rating / 5) * 100;
-    hasRating = true;
-    factors.push(`Rated ${lead.rating}/5`);
-  }
-
-  if (lead.reviews && lead.reviews > 0) {
-    // Log scale: 10 reviews ≈ 50pts, 100 ≈ 75pts, 1000 ≈ 100pts
-    reviewScore = Math.min((Math.log10(lead.reviews + 1) / 3) * 100, 100);
-    hasReviews = true;
-    factors.push(`${lead.reviews} reviews`);
-  }
-
-  if (!hasRating && !hasReviews) {
-    return { score: 0, hasData: false, factors };
-  }
-
-  // Blend: rating carries 60%, review volume 40%
-  const blended =
-    (hasRating ? ratingScore * 0.6 : 0) +
-    (hasReviews ? reviewScore * 0.4 : 0);
-
-  // Normalise if only one source is present
-  const divisor = (hasRating ? 0.6 : 0) + (hasReviews ? 0.4 : 0);
-  const score = blended / divisor;
-
-  return { score, hasData: true, factors };
+  const val = lead[field as keyof Lead];
+  return !!(val && String(val).trim().length > 0);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
-export interface BaseScoreResult {
-  score: number;
-  explanation: string;
-}
-
 /**
- * Calculates a base score (0–100) from real lead data only.
- * No AI component — call applyAIScore() separately after AI runs.
+ * Scores a lead based on what service the user is selling.
+ * Same lead, different score depending on what gaps are relevant.
  */
-export function calculateBaseScore(lead: Partial<Lead>): BaseScoreResult {
-  const completeness = scoreCompleteness(lead);
-  const quality = scoreQuality(lead);
+export function calculateServiceScore(
+  lead: Partial<Lead>,
+  service: string = ''
+): ScoreResult {
+  const profile  = detectProfile(service);
+  const gaps: string[]    = [];
+  const factors: string[] = [];
+  let score = 0;
 
-  // Redistribute weights if quality data is absent
-  const weights: ScoringWeights = quality.hasData
-    ? BASE_WEIGHTS
-    : {
-      completeness: BASE_WEIGHTS.completeness + BASE_WEIGHTS.quality,
-      quality: 0,
-      ai: BASE_WEIGHTS.ai,
-    };
+  // Score gaps (absence of something the seller can fill)
+  for (const check of profile.missingFieldBonus) {
+    if (!hasField(lead, check.field)) {
+      score += check.points;
+      gaps.push(check.label);
+      factors.push(check.label);
+    }
+  }
 
-  // AI weight is held at neutral (0) until applyAIScore() is called
-  const score =
-    completeness.score * weights.completeness +
-    quality.score * weights.quality;
-  // AI portion is NOT included here — applied separately
-
-  // Re-scale to account for the missing AI slot (score is currently out of 0.80 max)
-  const scaledScore = score / (1 - weights.ai);
-
-  const allFactors = [...completeness.factors, ...quality.factors];
+  // Score presence (things that make the lead reachable/viable)
+  for (const check of profile.presentFieldBonus) {
+    if (hasField(lead, check.field)) {
+      score += check.points;
+      factors.push(check.label);
+    }
+  }
 
   return {
-    score: Math.min(100, Math.round(scaledScore)),
-    explanation: allFactors.length > 0 ? allFactors.join(' • ') : 'Basic listing',
+    score:       Math.min(100, score),
+    explanation: factors.length > 0 ? factors.join(' • ') : 'Basic listing',
+    serviceGaps: gaps,
   };
-}
-
-/**
- * Merges an AI score into an already-scored lead.
- * If aiScore is null/undefined, the base score is returned unchanged.
- */
-export function applyAIScore(baseScore: number, aiScore: number | null): number {
-  if (aiScore === null || aiScore === undefined) return baseScore;
-
-  // Blend: base score holds 80%, AI contributes 20%
-  const merged = baseScore * (1 - BASE_WEIGHTS.ai) + aiScore * BASE_WEIGHTS.ai;
-  return Math.min(100, Math.round(merged));
 }
 
 export function getScoreLabel(score: number): ScoreLabel {
   if (score >= 70) return 'High Potential';
-  if (score >= 40) return 'Medium';
+  if (score >= 35) return 'Medium';
   return 'Low';
 }

@@ -5,7 +5,7 @@ import { useTranslation } from '@/core/i18n/useTranslation';
 import { Globe } from 'lucide-react';
 
 export const LanguageToggle: React.FC = () => {
-  const { language, setLanguage, isRTL } = useTranslation();
+  const { language, setLanguage } = useTranslation();
 
   return (
     <div style={styles.container}>

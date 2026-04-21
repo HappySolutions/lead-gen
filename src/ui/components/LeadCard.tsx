@@ -2,268 +2,172 @@
 
 import React from 'react';
 import { Lead } from '@/core/types';
-import { MapPin, Globe, Phone, Info, Zap, Clock } from 'lucide-react';
+import { MapPin, Globe, Phone, Mail, Zap, MessageSquare, Lock, AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface LeadCardProps {
   lead: Lead;
+  locked?: boolean;
   onViewDetails?: (lead: Lead) => void;
 }
 
-export const LeadCard: React.FC<LeadCardProps> = ({ lead, onViewDetails }) => {
-  const { t, isRTL } = useTranslation();
-  const isHighPotential = lead.score >= 70;
+export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onViewDetails }) => {
+  const { t } = useTranslation();
+  const scoreColor =
+    lead.score >= 70 ? { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d' } :
+    lead.score >= 35 ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e' } :
+                       { bg: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
 
-  const translatedScoreLabel =
-    lead.score >= 70 ? t.leads.highPotential : lead.score >= 40 ? t.leads.medium : t.leads.low;
+  const scoreLabel =
+    lead.score >= 70 ? t.leads.highPotential :
+    lead.score >= 35 ? t.leads.medium : t.leads.low;
+
+  // Blur helper — hides value when locked
+  const blurred: React.CSSProperties = locked
+    ? { filter: 'blur(4px)', userSelect: 'none', pointerEvents: 'none' }
+    : {};
+
+  const contactVal = (val: string | undefined, fallback: string) =>
+    locked ? fallback : (val ?? '—');
 
   return (
-    <div style={styles.card} className="animate-in">
+    <div style={{ ...styles.card, ...(locked ? styles.cardLocked : {}) }}>
+
+      {locked && (
+        <div style={styles.lockBadge}>
+          <Lock size={11} />
+          <span>{t.leads.upgradeToUnlock}</span>
+        </div>
+      )}
+
+      {/* Header */}
       <div style={styles.header}>
         <div style={styles.mainInfo}>
           <h3 style={styles.title}>{lead.name}</h3>
           <span style={styles.category}>{lead.category}</span>
         </div>
-        <div
-          style={{
-            ...styles.scoreBadge,
-            backgroundColor: isHighPotential ? '#f0fdf4' : '#f8fafc',
-            borderColor: isHighPotential ? '#bbf7d0' : '#e2e8f0',
-            color: isHighPotential ? '#15803d' : '#64748b',
-            flexDirection: isRTL ? 'row-reverse' : 'row',
-          }}
-        >
-          <Zap size={14} style={{ [isRTL ? 'marginLeft' : 'marginRight']: '6px' }} />
-          <span style={styles.scoreText}>{lead.score}</span>
-          <span style={styles.scoreLabel}>{translatedScoreLabel}</span>
+        <div style={{ ...styles.scoreBadge, backgroundColor: scoreColor.bg, borderColor: scoreColor.border, color: scoreColor.text }}>
+          <Zap size={12} />
+          <span style={styles.scoreNum}>{lead.score}</span>
+          <span style={styles.scoreLabel}>{scoreLabel}</span>
         </div>
       </div>
 
-      {/* Only show rating row if real data exists */}
-      {(lead.rating || lead.reviews) && (
-        <div style={styles.ratingRow}>
-          {lead.rating && (
-            <span style={styles.ratingText}>★ {lead.rating.toFixed(1)}</span>
-          )}
-          {lead.reviews && (
-            <span style={styles.reviewCount}>
-              ({lead.reviews} {t.leads.reviews})
-            </span>
-          )}
+      {/* Service gaps — the reason this lead is valuable */}
+      {lead.serviceGaps && lead.serviceGaps.length > 0 && (
+        <div style={styles.gapsRow}>
+          <AlertTriangle size={12} style={{ color: '#f59e0b', flexShrink: 0 }} />
+          <span style={styles.gapsText}>{lead.serviceGaps.join(' · ')}</span>
         </div>
       )}
 
-      <div style={styles.details}>
+      {/* Description */}
+      {lead.description && !locked && (
+        <p style={styles.description}>{lead.description}</p>
+      )}
+
+      {/* Contact info */}
+      <div style={styles.contactBlock}>
         <div style={styles.detailItem}>
-          <MapPin size={14} style={styles.detailIcon} />
+          <MapPin size={13} style={styles.icon} />
           <span>{lead.address}</span>
         </div>
-        {lead.phone && (
-          <div style={styles.detailItem}>
-            <Phone size={14} style={styles.detailIcon} />
-            <span>{lead.phone}</span>
-          </div>
-        )}
-        {lead.website && (
-          <div style={styles.detailItem}>
-            <Globe size={14} style={styles.detailIcon} />
-            <a
-              href={lead.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={styles.link}
-            >
-              {(() => {
-                try {
-                  return new URL(lead.website).hostname;
-                } catch {
-                  return lead.website;
-                }
-              })()}
+        {(lead.email || locked) && (
+          <div style={{ ...styles.detailItem, ...blurred }}>
+            <Mail size={13} style={styles.icon} />
+            <a href={locked ? undefined : `mailto:${lead.email}`} style={styles.link}>
+              {contactVal(lead.email, 'info@example•••.com')}
             </a>
           </div>
         )}
-        {lead.openingHours && (
-          <div style={styles.detailItem}>
-            <Clock size={14} style={styles.detailIcon} />
-            <span style={styles.hours}>{lead.openingHours}</span>
+        {(lead.phone || locked) && (
+          <div style={{ ...styles.detailItem, ...(locked ? blurred : {}) }}>
+            <Phone size={13} style={styles.icon} />
+            <a href={locked ? undefined : `tel:${lead.phone}`} style={styles.link}>
+              {contactVal(lead.phone, '+20 1•• ••• ••••')}
+            </a>
+          </div>
+        )}
+        {lead.website && (
+          <div style={{ ...styles.detailItem, ...(locked ? blurred : {}) }}>
+            <Globe size={13} style={styles.icon} />
+            <a href={locked ? undefined : lead.website} target="_blank" rel="noopener noreferrer" style={styles.link}>
+              {locked ? 'www.example•••.com' : (() => { try { return new URL(lead.website!).hostname; } catch { return lead.website; } })()}
+            </a>
           </div>
         )}
       </div>
 
-      {/* Score explanation pills */}
-      {lead.scoreExplanation && (
-        <div style={styles.scoreFactors}>
-          {lead.scoreExplanation.split(' • ').map((factor) => (
-            <span key={factor} style={styles.factorPill}>
-              {factor}
-            </span>
+      {/* Social channels */}
+      {!locked && lead.socialLinks && Object.values(lead.socialLinks).some(Boolean) && (
+        <div style={styles.channelsRow}>
+          <span style={styles.channelsLabel}>Social:</span>
+          {/* <div style={styles.channels}>
+            {lead.socialLinks.linkedin  && <a href={lead.socialLinks.linkedin}  target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.linkedinPill }}><Linkedin  size={11} /> LinkedIn</a>}
+            {lead.socialLinks.instagram && <a href={lead.socialLinks.instagram} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.instagramPill }}><Instagram size={11} /> Instagram</a>}
+            {lead.socialLinks.facebook  && <a href={lead.socialLinks.facebook}  target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.facebookPill }}><Facebook  size={11} /> Facebook</a>}
+          </div> */}
+        </div>
+      )}
+
+      {/* AI outreach tip */}
+      {!locked && lead.aiInsights && (
+        <div style={styles.insightBox}>
+          <div style={styles.insightHeader}><MessageSquare size={11} /><span>{t.leads.outreachTip}</span></div>
+          <p style={styles.insightText}>{lead.aiInsights}</p>
+        </div>
+      )}
+
+      {/* Score factors */}
+      {!locked && lead.scoreExplanation && lead.scoreExplanation !== 'Basic listing' && (
+        <div style={styles.factors}>
+          {lead.scoreExplanation.split(' • ').map((f) => (
+            <span key={f} style={styles.factorPill}>{f}</span>
           ))}
         </div>
       )}
 
-      {lead.aiInsights && (
-        <div style={styles.aiBox}>
-          <div style={styles.aiHeader}>
-            <Info size={12} style={{ [isRTL ? 'marginLeft' : 'marginRight']: '6px' }} />
-            <span>{t.leads.aiInsight}</span>
-          </div>
-          <p style={styles.aiText}>{lead.aiInsights}</p>
-        </div>
-      )}
-
       <button
-        onClick={(e) => {
-          e.preventDefault();
-          onViewDetails?.(lead);
-        }}
-        style={styles.moreButton}
+        onClick={() => onViewDetails?.(lead)}
+        style={{ ...styles.detailsBtn, ...(locked ? styles.detailsBtnLocked : {}) }}
+        disabled={locked}
       >
-        {t.leads.viewDetails}
+        {locked ? t.leads.upgradeToView : t.leads.viewFullProfile}
       </button>
     </div>
   );
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: '16px',
-    padding: '24px',
-    border: '1px solid #f1f5f9',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '14px',
-    transition: 'all 0.3s ease',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  mainInfo: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  title: {
-    fontSize: '17px',
-    color: '#0f172a',
-    fontWeight: '600',
-    margin: 0,
-  },
-  category: {
-    fontSize: '12px',
-    color: '#64748b',
-    fontWeight: '500',
-    textTransform: 'capitalize',
-  },
-  scoreBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '6px 10px',
-    borderRadius: '8px',
-    border: '1px solid',
-    fontSize: '13px',
-    fontWeight: '600',
-    flexShrink: 0,
-    gap: '4px',
-  },
-  scoreText: {
-    fontSize: '15px',
-  },
-  scoreLabel: {
-    fontSize: '11px',
-    opacity: 0.8,
-  },
-  ratingRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-  },
-  ratingText: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#f59e0b',
-  },
-  reviewCount: {
-    fontSize: '13px',
-    color: '#94a3b8',
-  },
-  details: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-  },
-  detailItem: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    gap: '10px',
-    fontSize: '13px',
-    color: '#475569',
-    lineHeight: '1.5',
-  },
-  detailIcon: {
-    color: '#94a3b8',
-    flexShrink: 0,
-    marginTop: '2px',
-  },
-  link: {
-    color: '#6366f1',
-    textDecoration: 'none',
-    fontWeight: '500',
-  },
-  hours: {
-    fontSize: '12px',
-    color: '#64748b',
-    fontFamily: 'monospace',
-  },
-  scoreFactors: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '6px',
-  },
-  factorPill: {
-    fontSize: '11px',
-    backgroundColor: '#f1f5f9',
-    color: '#64748b',
-    padding: '2px 8px',
-    borderRadius: '100px',
-    fontWeight: '500',
-  },
-  aiBox: {
-    backgroundColor: '#f5f3ff',
-    padding: '12px',
-    borderRadius: '10px',
-    border: '1px solid #ede9fe',
-  },
-  aiHeader: {
-    fontSize: '10px',
-    fontWeight: '700',
-    color: '#7c3aed',
-    marginBottom: '6px',
-    display: 'flex',
-    alignItems: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '0.05em',
-  },
-  aiText: {
-    fontSize: '12px',
-    color: '#5b21b6',
-    lineHeight: '1.5',
-    margin: 0,
-  },
-  moreButton: {
-    marginTop: '4px',
-    width: '100%',
-    padding: '10px',
-    borderRadius: '8px',
-    border: '1px solid #e2e8f0',
-    backgroundColor: 'transparent',
-    color: '#475569',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
+  card:           { backgroundColor: 'var(--card)', borderRadius: '14px', padding: '20px', border: '1px solid var(--secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' },
+  cardLocked:     { opacity: 0.75, backgroundColor: 'var(--secondary)' },
+  lockBadge:      { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: '700', color: '#6366f1', backgroundColor: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 8px', borderRadius: '6px', alignSelf: 'flex-start' },
+  header:         { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },
+  mainInfo:       { display: 'flex', flexDirection: 'column', gap: '3px' },
+  title:          { fontSize: '16px', fontWeight: '600', color: 'var(--foreground)', margin: 0 },
+  category:       { fontSize: '12px', color: 'var(--muted)', fontWeight: '500', textTransform: 'capitalize' },
+  scoreBadge:     { display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '8px', border: '1px solid', fontSize: '12px', fontWeight: '600', flexShrink: 0 },
+  scoreNum:       { fontSize: '14px' },
+  scoreLabel:     { fontSize: '11px', opacity: 0.85 },
+  gapsRow:        { display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '6px 10px' },
+  gapsText:       { fontSize: '12px', color: '#92400e', fontWeight: '500' },
+  description:    { fontSize: '12px', color: 'var(--muted)', lineHeight: '1.5', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' },
+  contactBlock:   { display: 'flex', flexDirection: 'column', gap: '7px' },
+  detailItem:     { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--secondary-foreground)' },
+  icon:           { color: 'var(--muted-foreground)', flexShrink: 0 },
+  link:           { color: '#6366f1', textDecoration: 'none', fontWeight: '500', wordBreak: 'break-all' },
+  channelsRow:    { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  channelsLabel:  { fontSize: '11px', color: '#94a3b8', fontWeight: '500' },
+  channels:       { display: 'flex', gap: '6px', flexWrap: 'wrap' },
+  pill:           { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '6px', textDecoration: 'none', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' },
+  linkedinPill:   { backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' },
+  instagramPill:  { backgroundColor: '#fdf4ff', color: '#7e22ce', borderColor: '#e9d5ff' },
+  facebookPill:   { backgroundColor: '#eff6ff', color: '#1e40af', borderColor: '#bfdbfe' },
+  insightBox:     { backgroundColor: 'var(--secondary)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', borderLeft: '3px solid #6366f1', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
+  insightHeader:  { display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontWeight: '700', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' },
+  insightText:    { fontSize: '12px', color: 'var(--secondary-foreground)', lineHeight: '1.5', margin: 0 },
+  factors:        { display: 'flex', flexWrap: 'wrap', gap: '5px' },
+  factorPill:     { fontSize: '10px', backgroundColor: 'var(--secondary)', color: 'var(--muted)', padding: '2px 7px', borderRadius: '100px', fontWeight: '500' },
+  detailsBtn:     { width: '100%', padding: '9px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'transparent', color: 'var(--secondary-foreground)', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  detailsBtnLocked: { cursor: 'not-allowed', color: 'var(--muted-foreground)', borderColor: 'var(--secondary)' },
 };

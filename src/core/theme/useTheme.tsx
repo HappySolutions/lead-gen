@@ -12,13 +12,24 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // IMPORTANT: keep initial render stable for SSR hydration.
+  // We intentionally DO NOT read localStorage/matchMedia in the initializer.
   const [theme, setTheme] = useState<Theme>('light');
 
   useEffect(() => {
-    const saved = localStorage.getItem('leadgeni_theme') as Theme;
-    if (saved && (saved === 'light' || saved === 'dark')) {
-      setTheme(saved);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    try {
+      const saved = localStorage.getItem('leadgeni_theme') as Theme;
+      if (saved === 'light' || saved === 'dark') {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTheme(saved);
+        return;
+      }
+    } catch {
+      // ignore (e.g. blocked storage)
+    }
+
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTheme('dark');
     }
   }, []);

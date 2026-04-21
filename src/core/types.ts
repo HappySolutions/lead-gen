@@ -10,11 +10,18 @@ export interface Lead {
   name: string;
   category: string;
   address: string;
+  rating?: number;
+  reviews?: number;
   phone?: string;
   website?: string;
   email?: string;
-  rating?: number;   // OSM does not supply ratings; kept for future enrichment
-  reviews?: number;  // Same — kept undefined unless enriched
+  socialLinks?: {
+    linkedin?: string;
+    instagram?: string;
+    facebook?: string;
+    twitter?: string;
+  };
+  description?: string;
   openingHours?: string;
   location: LeadLocation;
 
@@ -23,13 +30,16 @@ export interface Lead {
   scoreLabel: ScoreLabel;
   scoreExplanation: string;
   aiInsights?: string;
+
+  // What service gaps make this lead valuable
+  serviceGaps?: string[]; // e.g. ['No website', 'No social media']
 }
 
 export interface SearchFilters {
   hasWebsite: boolean;
   hasPhone: boolean;
-  minRating: number;
-  sortBy: 'score' | 'rating' | 'reviews';
+  hasEmail: boolean;
+  sortBy: 'score' | 'name';
 }
 
 export interface SearchState {
