@@ -40,7 +40,8 @@ export interface SearchFilters {
   hasWebsite: boolean;
   hasPhone: boolean;
   hasEmail: boolean;
-  sortBy: 'score' | 'name';
+  minRating: number;
+  sortBy: 'score' | 'rating' | 'reviews' | 'name';
 }
 
 export interface SearchState {

@@ -22,9 +22,12 @@ export interface Dictionary {
     hasPhone: string;
     hasEmail: string;
     sortBy: string;
+    minRating: string;
     sortOptions: {
       score: string;
       name: string;
+      rating: string;
+      reviews: string;
     };
   };
   leads: {
@@ -76,9 +79,12 @@ export const en: Dictionary = {
     hasPhone: 'Has phone',
     hasEmail: 'Has email',
     sortBy: 'Sort by',
+    minRating: 'Min Rating',
     sortOptions: {
       score: 'Score',
       name: 'Name',
+      rating: 'Rating',
+      reviews: 'Reviews',
     },
   },
   leads: {
@@ -132,9 +138,12 @@ export const ar: Dictionary = {
     hasPhone: 'يوجد هاتف',
     hasEmail: 'يوجد بريد إلكتروني',
     sortBy: 'ترتيب حسب',
+    minRating: 'أقل تقييم',
     sortOptions: {
       score: 'التقييم الكلي',
       name: 'الاسم',
+      rating: 'التقييم',
+      reviews: 'المراجعات',
     },
   },
   leads: {

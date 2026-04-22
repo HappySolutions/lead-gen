@@ -156,9 +156,16 @@ export interface EnrichmentResult {
       const batch = leads.slice(i, i + CONCURRENCY);
       const enriched = await Promise.all(
         batch.map(async (lead) => {
-          if (!lead.website) return { ...lead };
+          if (!lead.website) return { ...lead } as T & EnrichmentResult;
           const data = await enrichWebsite(lead.website);
-          return { ...lead, ...data };
+          const l = lead as any;
+          // Only overwrite if we found something new, otherwise preserve existing
+          return {
+            ...lead,
+            email:       data.email       || l.email,
+            description: data.description || l.description,
+            socialLinks: data.socialLinks || l.socialLinks,
+          } as T & EnrichmentResult;
         })
       );
       results.push(...enriched);
