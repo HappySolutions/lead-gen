@@ -11,6 +11,7 @@ import { BillingDialog } from '@/ui/components/BillingDialog';
 import { useTranslation } from '@/core/i18n/useTranslation';
 import { Lead, SearchFilters } from '@/core/types';
 import { Download, Target, TrendingUp, LayoutDashboard, Lock } from 'lucide-react';
+import { LeadCardSkeleton } from '@/ui/components/LeadCardSkeleton';
 
 // ─── Free tier: first 5 leads show full data, rest are blurred ───────────────
 const FREE_TIER_LIMIT = 5;
@@ -184,44 +185,44 @@ export default function Home() {
       </section>
 
       {/* Results */}
-      {processedLeads.length > 0 && (
-        <div>
-          <div style={styles.resultsBar}>
-            <Filters filters={filters} onChange={setFilters} />
-            <button onClick={exportToCSV} style={styles.exportBtn}>
-              {isUnlocked ? <Download size={14} /> : <Lock size={14} />}
-              <span style={{ marginLeft: '6px' }}>
-                {isUnlocked ? t.leads.export : t.leads.exportUpgrade}
-              </span>
-            </button>
-          </div>
+{(loading || processedLeads.length > 0) && (
+  <div>
+    <div style={styles.resultsBar}>
+      <Filters filters={filters} onChange={setFilters} />
+      <button onClick={exportToCSV} style={styles.exportBtn}>
+        {isUnlocked ? <Download size={14} /> : <Lock size={14} />}
+        <span style={{ marginLeft: '6px' }}>
+          {isUnlocked ? t.leads.export : t.leads.exportUpgrade}
+        </span>
+      </button>
+    </div>
 
-          <div style={styles.grid}>
-            {processedLeads.map((lead, i) => (
-              <LeadCard
-                key={lead.id}
-                lead={lead}
-                locked={!isUnlocked && i >= FREE_TIER_LIMIT}
-                onViewDetails={isUnlocked || i < FREE_TIER_LIMIT ? setSelectedLead : undefined}
-              />
-            ))}
-          </div>
+    <div style={styles.grid}>
+      {loading
+        ? Array.from({ length: 9 }).map((_, i) => <LeadCardSkeleton key={`sk-${i}`} />)
+        : processedLeads.map((lead, i) => (
+            <LeadCard
+              key={lead.id}
+              lead={lead}
+              locked={!isUnlocked && i >= FREE_TIER_LIMIT}
+              onViewDetails={isUnlocked || i < FREE_TIER_LIMIT ? setSelectedLead : undefined}
+            />
+          ))}
+    </div>
 
-          {/* Upgrade prompt */}
-          {!isUnlocked && lockedCount > 0 && (
-            <div style={styles.upgradeBox}>
-              <Lock size={20} color="#6366f1" />
-              <div style={styles.upgradeText}>
-                <strong>{t.leads.upgradeHiddenLeads(lockedCount)}</strong> {t.leads.upgradeDescription}
-              </div>
-              {/* Replace onClick with your Stripe/payment link */}
-              <button onClick={() => setBillingOpen(true)} style={styles.upgradeBtn}>
-                {t.leads.unlockAllLeads}
-              </button>
-            </div>
-          )}
+    {!isUnlocked && lockedCount > 0 && (
+      <div style={styles.upgradeBox}>
+        <Lock size={20} color="#6366f1" />
+        <div style={styles.upgradeText}>
+          <strong>{t.leads.upgradeHiddenLeads(lockedCount)}</strong> {t.leads.upgradeDescription}
         </div>
-      )}
+        <button onClick={() => setBillingOpen(true)} style={styles.upgradeBtn}>
+          {t.leads.unlockAllLeads}
+        </button>
+      </div>
+    )}
+  </div>
+)}
 
       {selectedLead && (
         <LeadDetails lead={selectedLead} onClose={() => setSelectedLead(null)} />
