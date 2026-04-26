@@ -10,8 +10,9 @@ export interface Lead {
   name: string;
   category: string;
   address: string;
-  rating?: number;
-  reviews?: number;
+  source?: 'osm' | 'gmaps' | 'merged'; // which data layer produced this lead
+  rating?: number;   // Google Maps star rating 1–5
+  reviews?: number;  // Google Maps review count
   phone?: string;
   website?: string;
   email?: string;
@@ -39,7 +40,8 @@ export interface SearchFilters {
   hasWebsite: boolean;
   hasPhone: boolean;
   hasEmail: boolean;
-  sortBy: 'score' | 'name';
+  minRating: number;
+  sortBy: 'score' | 'rating' | 'reviews' | 'name';
 }
 
 export interface SearchState {

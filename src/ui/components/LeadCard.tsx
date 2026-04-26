@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Lead } from '@/core/types';
-import { MapPin, Globe, Phone, Mail, Zap, MessageSquare, Lock, AlertTriangle } from 'lucide-react';
+import { MapPin, Globe, Phone, Mail, Zap, MessageSquare, Lock, AlertTriangle, Star } from 'lucide-react';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface LeadCardProps {
@@ -44,7 +44,15 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
       <div style={styles.header}>
         <div style={styles.mainInfo}>
           <h3 style={styles.title}>{lead.name}</h3>
-          <span style={styles.category}>{lead.category}</span>
+          <div style={styles.metaRow}>
+            <span style={styles.category}>{lead.category}</span>
+            {lead.rating !== undefined && (
+              <div style={styles.ratingBox}>
+                <Star size={12} fill="#f59e0b" color="#f59e0b" />
+                <span style={styles.ratingText}>{lead.rating} ({lead.reviews ?? 0})</span>
+              </div>
+            )}
+          </div>
         </div>
         <div style={{ ...styles.scoreBadge, backgroundColor: scoreColor.bg, borderColor: scoreColor.border, color: scoreColor.text }}>
           <Zap size={12} />
@@ -144,13 +152,16 @@ const styles: Record<string, React.CSSProperties> = {
   lockBadge:      { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: '700', color: '#6366f1', backgroundColor: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 8px', borderRadius: '6px', alignSelf: 'flex-start' },
   header:         { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },
   mainInfo:       { display: 'flex', flexDirection: 'column', gap: '3px' },
+  metaRow:        { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
   title:          { fontSize: '16px', fontWeight: '600', color: 'var(--foreground)', margin: 0 },
   category:       { fontSize: '12px', color: 'var(--muted)', fontWeight: '500', textTransform: 'capitalize' },
+  ratingBox:      { display: 'flex', alignItems: 'center', gap: '3px' },
+  ratingText:     { fontSize: '11px', color: 'var(--muted)', fontWeight: '500' },
   scoreBadge:     { display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '8px', border: '1px solid', fontSize: '12px', fontWeight: '600', flexShrink: 0 },
   scoreNum:       { fontSize: '14px' },
   scoreLabel:     { fontSize: '11px', opacity: 0.85 },
-  gapsRow:        { display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '6px', padding: '6px 10px' },
-  gapsText:       { fontSize: '12px', color: '#92400e', fontWeight: '500' },
+  gapsRow:        { display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px 10px' },
+  gapsText:       { fontSize: '12px', color: '#f59e0b', fontWeight: '500' },
   description:    { fontSize: '12px', color: 'var(--muted)', lineHeight: '1.5', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' },
   contactBlock:   { display: 'flex', flexDirection: 'column', gap: '7px' },
   detailItem:     { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--secondary-foreground)' },

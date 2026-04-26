@@ -38,6 +38,8 @@ export interface RawLead {
   name: string;
   category: string;
   address: string;
+  rating?: number;
+  reviews?: number;
   phone?: string;
   website?: string;
   email?: string;

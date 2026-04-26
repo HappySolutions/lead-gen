@@ -1,19 +1,20 @@
 /**
  * route.ts — Pipeline orchestrator.
  *
- * Now accepts an optional `service` param (what the user sells).
- * This flows into scoring and AI insights to make both service-specific.
+ * Auth-aware: reads user profile from Supabase, enforces search limits.
+ * Increments searches_used on every successful search for free-tier users.
  *
  * GET /api/leads?q=gyms&loc=Cairo&service=web+design
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchRawLeads }            from '@/services/places';
-import { enrichLeads }              from '@/services/enrichment';
-import { analyzeLeadQuality }       from '@/services/ai';
+import { fetchRawLeads }             from '@/services/places';
+import { fetchApifyLeads, mergeLeads } from '@/services/apify';
+import { enrichLeads }               from '@/services/enrichment';
+import { analyzeLeadQuality }        from '@/services/ai';
 import { calculateServiceScore, getScoreLabel } from '@/core/scoring';
 import { Lead } from '@/core/types';
-
+import { createServerClient } from '@/lib/supabase.server';
 export const maxDuration = 60;
 
 const MAX_RESULTS  = 20;
@@ -31,39 +32,68 @@ export async function GET(request: NextRequest) {
 
   if (!q || !loc) {
     return NextResponse.json(
-      { error: 'Missing required params: q (business type) and loc (location).' },
+      { error: 'Missing required params: q and loc.' },
       { status: 400 }
     );
   }
 
-  const cacheKey = `${q.toLowerCase()}::${loc.toLowerCase()}::${service.toLowerCase()}::${lang.toLowerCase()}`;
+  // ── Auth check ──────────────────────────────────────────────────────────────
+  const supabase = await createServerClient();
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
+    return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+
+  // ── Load user profile ───────────────────────────────────────────────────────
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('is_paid, searches_used, searches_limit')
+    .eq('id', session.user.id)
+    .single();
+
+  if (!profile) {
+    return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+  }
+
+  // ── Enforce search limit for free-tier users ────────────────────────────────
+  if (!profile.is_paid && profile.searches_used >= profile.searches_limit) {
+    return NextResponse.json(
+      { error: 'SEARCH_LIMIT_REACHED', searches_used: profile.searches_used, searches_limit: profile.searches_limit },
+      { status: 403 }
+    );
+  }
+
+  // ── Cache check (cached results don't count as a new search) ───────────────
+  const cacheKey = `${q.toLowerCase()}::${loc.toLowerCase()}::${service.toLowerCase()}`;
   const cached   = cache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return NextResponse.json(cached.data, { headers: { 'X-Cache': 'HIT' } });
   }
 
   try {
-    // 1. Fetch raw OSM leads
-    const rawLeads = await fetchRawLeads(q, loc);
+    // ── Fetch from OSM + Apify in parallel ──────────────────────────────────
+    const [osmLeads, apifyLeads] = await Promise.all([
+      fetchRawLeads(q, loc).catch((err: Error) => { console.error('[route] OSM failed:', err.message); return []; }),
+      fetchApifyLeads(q, loc).catch((err: Error) => { console.error('[route] Apify failed:', err.message); return []; }),
+    ]);
+
+    const rawLeads = mergeLeads(osmLeads, apifyLeads);
+
     if (rawLeads.length === 0) {
       return NextResponse.json([], { headers: { 'X-Cache': 'MISS' } });
     }
 
-    // 2. Enrich with website data
+    // ── Enrich → Score → AI ─────────────────────────────────────────────────
     const enriched = await enrichLeads(rawLeads);
 
-    // 3. Score with service-awareness
     const scored = enriched.map((lead) => {
       const { score, explanation, serviceGaps } = calculateServiceScore(lead, service);
       return { lead, score, explanation, serviceGaps };
     });
 
-    // 4. Sort, cap at MAX_RESULTS
-    const top = scored
-      .sort((a, b) => b.score - a.score)
-      .slice(0, MAX_RESULTS);
+    const top = scored.sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
 
-    // 5. AI insights for top N — now service-aware
     const aiResults = await Promise.all(
       top.map(async ({ lead, serviceGaps }, i) => {
         if (i >= TOP_N_FOR_AI) return null;
@@ -72,17 +102,19 @@ export async function GET(request: NextRequest) {
       })
     );
 
-    // 6. Build Lead objects
     const leads: Lead[] = top.map(({ lead, score, explanation, serviceGaps }, i) => ({
       id:               lead.osmId,
       name:             lead.name,
       category:         lead.category,
       address:          lead.address,
+      source:           (lead.osmId.startsWith('gmaps-') ? 'gmaps' : 'osm') as 'gmaps' | 'osm',
+      rating:           lead.rating !== undefined ? Number(lead.rating) : undefined,
+      reviews:          lead.reviews !== undefined ? Number(lead.reviews) : undefined,
       phone:            lead.phone,
       website:          lead.website,
       email:            lead.email,
-      socialLinks:      lead.socialLinks,
-      description:      lead.description,
+      socialLinks:      (lead as any).socialLinks,
+      description:      (lead as any).description,
       openingHours:     lead.openingHours,
       location:         lead.location,
       score,
@@ -93,7 +125,23 @@ export async function GET(request: NextRequest) {
     }));
 
     cache.set(cacheKey, { data: leads, timestamp: Date.now() });
-    return NextResponse.json(leads, { headers: { 'X-Cache': 'MISS' } });
+
+    // ── Increment searches_used for free-tier users ──────────────────────────
+    if (!profile.is_paid) {
+      await supabase
+        .from('user_profiles')
+        .update({ searches_used: profile.searches_used + 1 })
+        .eq('id', session.user.id);
+    }
+
+    return NextResponse.json(leads, {
+      headers: {
+        'X-Cache':          'MISS',
+        'X-Searches-Used':  String(profile.searches_used + 1),
+        'X-Searches-Limit': String(profile.searches_limit),
+        'X-Is-Paid':        String(profile.is_paid),
+      },
+    });
 
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unexpected error';
