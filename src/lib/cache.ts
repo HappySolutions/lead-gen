@@ -22,9 +22,9 @@ import { Lead } from '@/core/types';
 // ── TTLs (seconds) ───────────────────────────────────────────────────────────
 const TTL = {
   finalResults: 60 * 30,   // 30 min  — full scored + AI enriched result set
-  apifyRaw:     60 * 60,   // 60 min  — raw Apify actor response
-  osmRaw:       60 * 60,   // 60 min  — raw OSM / places response
-  aiInsights:   60 * 60,   // 60 min  — AI analysis per individual lead
+  apifyRaw: 60 * 60,   // 60 min  — raw Apify actor response
+  osmRaw: 60 * 60,   // 60 min  — raw OSM / places response
+  aiInsights: 60 * 60,   // 60 min  — AI analysis per individual lead
 } as const;
 
 // ── Key builders ─────────────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ const KEY = {
 };
 
 function norm(s: string): string {
-  return s.toLowerCase().trim().replace(/\s+/g, '+');
+  return s.toLowerCase().trim().replace(/\s+/g, '_');
 }
 
 // ── In-memory fallback (used when Redis is null) ──────────────────────────────
