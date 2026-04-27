@@ -4,6 +4,13 @@
  * Auth-aware: reads user profile from Supabase, enforces search limits.
  * Increments searches_used on every successful search for free-tier users.
  *
+ * Caching strategy (two-level):
+ *   L1 — finalResultsCache: full scored + AI result set (30 min TTL).
+ *         A cache HIT skips everything — no API calls, no AI, no counter bump.
+ *   L2 — apifyRawCache / osmRawCache: raw discovery results (60 min TTL).
+ *         Used on a cache MISS for final results so repeated searches for the
+ *         same location still avoid redundant Apify / OSM calls.
+ *
  * GET /api/leads?q=gyms&loc=Cairo&service=web+design
  */
 
@@ -15,13 +22,12 @@ import { analyzeLeadQuality }        from '@/services/ai';
 import { calculateServiceScore, getScoreLabel } from '@/core/scoring';
 import { Lead } from '@/core/types';
 import { createServerClient } from '@/lib/supabase.server';
+import { finalResultsCache, apifyRawCache, osmRawCache } from '@/lib/cache';
+
 export const maxDuration = 60;
 
 const MAX_RESULTS  = 20;
 const TOP_N_FOR_AI =  5;
-
-const cache = new Map<string, { data: Lead[]; timestamp: number }>();
-const CACHE_TTL_MS = 1000 * 60 * 30;
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -64,18 +70,38 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // ── Cache check (cached results don't count as a new search) ───────────────
-  const cacheKey = `${q.toLowerCase()}::${loc.toLowerCase()}::${service.toLowerCase()}`;
-  const cached   = cache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return NextResponse.json(cached.data, { headers: { 'X-Cache': 'HIT' } });
+  // ── L1: Final results cache (cache HITs don't count as a new search) ────────
+  const cached = await finalResultsCache.get(q, loc, service);
+  if (cached) {
+    return NextResponse.json(cached, {
+      headers: {
+        'X-Cache':          'HIT',
+        'X-Searches-Used':  String(profile.searches_used),
+        'X-Searches-Limit': String(profile.searches_limit),
+        'X-Is-Paid':        String(profile.is_paid),
+      },
+    });
   }
 
   try {
-    // ── Fetch from OSM + Apify in parallel ──────────────────────────────────
+    // ── L2: Raw discovery cache — avoids duplicate Apify / OSM calls ──────────
+    const [cachedOsm, cachedApify] = await Promise.all([
+      osmRawCache.get<Awaited<ReturnType<typeof fetchRawLeads>>>(q, loc),
+      apifyRawCache.get<Awaited<ReturnType<typeof fetchApifyLeads>>>(q, loc),
+    ]);
+
     const [osmLeads, apifyLeads] = await Promise.all([
-      fetchRawLeads(q, loc).catch((err: Error) => { console.error('[route] OSM failed:', err.message); return []; }),
-      fetchApifyLeads(q, loc).catch((err: Error) => { console.error('[route] Apify failed:', err.message); return []; }),
+      cachedOsm
+        ? Promise.resolve(cachedOsm)
+        : fetchRawLeads(q, loc)
+            .then(async (data) => { await osmRawCache.set(q, loc, data); return data; })
+            .catch((err: Error) => { console.error('[route] OSM failed:', err.message); return []; }),
+
+      cachedApify
+        ? Promise.resolve(cachedApify)
+        : fetchApifyLeads(q, loc)
+            .then(async (data) => { await apifyRawCache.set(q, loc, data); return data; })
+            .catch((err: Error) => { console.error('[route] Apify failed:', err.message); return []; }),
     ]);
 
     const rawLeads = mergeLeads(osmLeads, apifyLeads);
@@ -124,7 +150,8 @@ export async function GET(request: NextRequest) {
       aiInsights:       aiResults[i]?.insights ?? undefined,
     }));
 
-    cache.set(cacheKey, { data: leads, timestamp: Date.now() });
+    // ── Persist final results to L1 cache ────────────────────────────────────
+    await finalResultsCache.set(q, loc, service, leads);
 
     // ── Increment searches_used for free-tier users ──────────────────────────
     if (!profile.is_paid) {
