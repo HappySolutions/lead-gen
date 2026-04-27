@@ -2,7 +2,10 @@
 
 import React from 'react';
 import { Lead } from '@/core/types';
-import { MapPin, Globe, Phone, Mail, Zap, MessageSquare, Lock, AlertTriangle, Star } from 'lucide-react';
+import { 
+  MapPin, Globe, Phone, Mail, Zap, MessageSquare, 
+  Lock, AlertTriangle, Star, Linkedin, Instagram, Facebook 
+} from 'lucide-react';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
 interface LeadCardProps {
@@ -106,15 +109,27 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         )}
       </div>
 
-      {/* Social channels */}
+      {/* Social channels - Ticket 1.1 Fixed */}
       {!locked && lead.socialLinks && Object.values(lead.socialLinks).some(Boolean) && (
         <div style={styles.channelsRow}>
           <span style={styles.channelsLabel}>Social:</span>
-          {/* <div style={styles.channels}>
-            {lead.socialLinks.linkedin  && <a href={lead.socialLinks.linkedin}  target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.linkedinPill }}><Linkedin  size={11} /> LinkedIn</a>}
-            {lead.socialLinks.instagram && <a href={lead.socialLinks.instagram} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.instagramPill }}><Instagram size={11} /> Instagram</a>}
-            {lead.socialLinks.facebook  && <a href={lead.socialLinks.facebook}  target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.facebookPill }}><Facebook  size={11} /> Facebook</a>}
-          </div> */}
+          <div style={styles.channels}>
+            {lead.socialLinks.linkedin  && (
+              <a href={lead.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.linkedinPill }}>
+                <Linkedin size={11} /> LinkedIn
+              </a>
+            )}
+            {lead.socialLinks.instagram && (
+              <a href={lead.socialLinks.instagram} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.instagramPill }}>
+                <Instagram size={11} /> Instagram
+              </a>
+            )}
+            {lead.socialLinks.facebook  && (
+              <a href={lead.socialLinks.facebook} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.facebookPill }}>
+                <Facebook size={11} /> Facebook
+              </a>
+            )}
+          </div>
         </div>
       )}
 
@@ -167,7 +182,7 @@ const styles: Record<string, React.CSSProperties> = {
   detailItem:     { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--secondary-foreground)' },
   icon:           { color: 'var(--muted-foreground)', flexShrink: 0 },
   link:           { color: '#6366f1', textDecoration: 'none', fontWeight: '500', wordBreak: 'break-all' },
-  channelsRow:    { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  channelsRow:    { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' },
   channelsLabel:  { fontSize: '11px', color: '#94a3b8', fontWeight: '500' },
   channels:       { display: 'flex', gap: '6px', flexWrap: 'wrap' },
   pill:           { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '6px', textDecoration: 'none', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' },
