@@ -21,7 +21,7 @@ Enforce a predictable execution lifecycle and mandatory doc sync for every task.
 
 ### 4) Execute
 - Implement only scoped changes.
-- Keep boundaries intact (`app`, `services`, `core`, `ui`, `lib`).
+- Keep boundaries intact (`src/app`, `src/services`, `src/core`, `src/ui`, `src/lib`).
 
 ### 5) Validate
 - Run relevant checks (lint/build/test if available).
