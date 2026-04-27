@@ -18,8 +18,9 @@ git checkout -b feature/<name>
 git push origin feature/<name>
 ```
 4. Open Pull Request:
-- base branch must be `dev`
-- target must not be `main`
+- head/source branch should be `feature/<name>`
+- base/target branch must be `dev`
+- Do not open PRs targeting `main`
 
 ## PR Policy
 - PR to `dev` is required for all feature work.
