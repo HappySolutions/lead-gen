@@ -1,5 +1,5 @@
 /**
- * middleware.ts — Auth gate.
+ * proxy.ts — Auth gate.
  *
  * Runs on every request. If the user is not logged in and tries to access
  * any page except /login, redirect them to /login.
@@ -10,7 +10,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient(
