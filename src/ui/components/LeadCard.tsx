@@ -4,7 +4,7 @@ import React from 'react';
 import { Lead } from '@/core/types';
 import { 
   MapPin, Globe, Phone, Mail, Zap, MessageSquare, 
-  Lock, AlertTriangle, Star, Share2
+  Lock, AlertTriangle, Star, Share2, Sparkles
 } from 'lucide-react';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
@@ -20,10 +20,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
     lead.score >= 70 ? { bg: '#f0fdf4', border: '#bbf7d0', text: '#15803d' } :
     lead.score >= 35 ? { bg: '#fffbeb', border: '#fde68a', text: '#92400e' } :
                        { bg: '#f8fafc', border: '#e2e8f0', text: '#64748b' };
-
-  const scoreLabel =
-    lead.score >= 70 ? t.leads.highPotential :
-    lead.score >= 35 ? t.leads.medium : t.leads.low;
 
   const blurred: React.CSSProperties = locked
     ? { filter: 'blur(4px)', userSelect: 'none', pointerEvents: 'none' }
@@ -82,17 +78,16 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
             </a>
           </div>
         )}
-        {(lead.phone || locked) && (
+        {lead.website && (
           <div style={{ ...styles.detailItem, ...(locked ? blurred : {}) }}>
-            <Phone size={13} style={styles.icon} />
-            <a href={locked ? undefined : `tel:${lead.phone}`} style={styles.link}>
-              {contactVal(lead.phone, '+20 1•• ••• ••••')}
+            <Globe size={13} style={styles.icon} />
+            <a href={locked ? undefined : lead.website} target="_blank" rel="noopener noreferrer" style={styles.link}>
+              {locked ? 'www.example•••.com' : 'Website'}
             </a>
           </div>
         )}
       </div>
 
-      {/* Ticket 1.3: Responsive Social Buttons */}
       {!locked && lead.socialLinks && Object.values(lead.socialLinks).some(Boolean) && (
         <div style={styles.channelsRow}>
           <div style={styles.channels}>
@@ -112,6 +107,17 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
               </a>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Ticket 1.4: AI Insights Enhanced UI */}
+      {!locked && lead.aiInsights && (
+        <div style={styles.insightBox}>
+          <div style={styles.insightHeader}>
+            <Sparkles size={12} style={{ color: '#6366f1' }} />
+            <span>AI OUTREACH TIP</span>
+          </div>
+          <p style={styles.insightText}>{lead.aiInsights}</p>
         </div>
       )}
 
@@ -153,6 +159,12 @@ const styles: Record<string, React.CSSProperties> = {
   linkedinPill:   { backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' },
   instagramPill:  { backgroundColor: '#fdf4ff', color: '#7e22ce', borderColor: '#e9d5ff' },
   facebookPill:   { backgroundColor: '#eff6ff', color: '#1e40af', borderColor: '#bfdbfe' },
+  
+  // AI Insights Styles
+  insightBox:     { backgroundColor: '#f8faff', padding: '12px', borderRadius: '10px', border: '1px solid #e0e7ff', borderLeft: '4px solid #6366f1' },
+  insightHeader:  { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10px', fontWeight: '800', color: '#4f46e5', marginBottom: '6px', letterSpacing: '0.02em' },
+  insightText:    { fontSize: '12px', color: '#374151', lineHeight: '1.6', margin: 0, fontStyle: 'italic' },
+  
   detailsBtn:     { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--background)', color: 'var(--foreground)', fontSize: '13px', fontWeight: '600', cursor: 'pointer', marginTop: '4px' },
   detailsBtnLocked: { cursor: 'not-allowed', opacity: 0.5 },
 };
