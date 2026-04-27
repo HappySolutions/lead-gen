@@ -1,4 +1,5 @@
 export type ScoreLabel = 'High Potential' | 'Medium' | 'Low';
+export type LeadSortBy = 'score' | 'rating' | 'reviews' | 'name';
 
 export interface LeadLocation {
   lat: number;
@@ -41,7 +42,35 @@ export interface SearchFilters {
   hasPhone: boolean;
   hasEmail: boolean;
   minRating: number;
-  sortBy: 'score' | 'rating' | 'reviews' | 'name';
+  sortBy: LeadSortBy;
+}
+
+export interface SearchQueryParams {
+  q: string;
+  loc: string;
+  service?: string;
+  lang?: 'en' | 'ar';
+  minRating?: number;
+  sortBy?: LeadSortBy;
+  page?: number;
+  limit?: number;
+}
+
+export interface LeadsResponseMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  sortBy: LeadSortBy;
+  minRating: number;
+  query: string;
+  location: string;
+  service: string;
+}
+
+export interface LeadsApiResponse {
+  items: Lead[];
+  meta: LeadsResponseMeta;
 }
 
 export interface SearchState {
