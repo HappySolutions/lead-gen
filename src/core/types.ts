@@ -50,6 +50,9 @@ export interface SearchQueryParams {
   loc: string;
   service?: string;
   lang?: 'en' | 'ar';
+  hasWebsite?: boolean;
+  hasPhone?: boolean;
+  hasEmail?: boolean;
   minRating?: number;
   sortBy?: LeadSortBy;
   page?: number;
@@ -63,6 +66,9 @@ export interface LeadsResponseMeta {
   totalPages: number;
   sortBy: LeadSortBy;
   minRating: number;
+  hasWebsite: boolean;
+  hasPhone: boolean;
+  hasEmail: boolean;
   query: string;
   location: string;
   service: string;
