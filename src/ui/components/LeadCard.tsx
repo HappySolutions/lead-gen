@@ -4,7 +4,7 @@ import React from 'react';
 import { Lead } from '@/core/types';
 import { 
   MapPin, Globe, Phone, Mail, Zap, MessageSquare, 
-  Lock, AlertTriangle, Star, Linkedin, Instagram, Facebook 
+  Lock, AlertTriangle, Star, Share2
 } from 'lucide-react';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
@@ -25,7 +25,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
     lead.score >= 70 ? t.leads.highPotential :
     lead.score >= 35 ? t.leads.medium : t.leads.low;
 
-  // Blur helper — hides value when locked
   const blurred: React.CSSProperties = locked
     ? { filter: 'blur(4px)', userSelect: 'none', pointerEvents: 'none' }
     : {};
@@ -43,16 +42,17 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         </div>
       )}
 
-      {/* Header */}
       <div style={styles.header}>
         <div style={styles.mainInfo}>
           <h3 style={styles.title}>{lead.name}</h3>
           <div style={styles.metaRow}>
             <span style={styles.category}>{lead.category}</span>
+            {/* Ticket 1.2: Modern Ratings UI */}
             {lead.rating !== undefined && (
               <div style={styles.ratingBox}>
-                <Star size={12} fill="#f59e0b" color="#f59e0b" />
-                <span style={styles.ratingText}>{lead.rating} ({lead.reviews ?? 0})</span>
+                <Star size={13} fill="#ffb800" color="#ffb800" />
+                <span style={styles.ratingText}>{lead.rating}</span>
+                <span style={styles.reviewsCount}>({lead.reviews ?? 0} {t.leads.reviews || 'reviews'})</span>
               </div>
             )}
           </div>
@@ -64,7 +64,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         </div>
       </div>
 
-      {/* Service gaps — the reason this lead is valuable */}
       {lead.serviceGaps && lead.serviceGaps.length > 0 && (
         <div style={styles.gapsRow}>
           <AlertTriangle size={12} style={{ color: '#f59e0b', flexShrink: 0 }} />
@@ -72,12 +71,10 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         </div>
       )}
 
-      {/* Description */}
       {lead.description && !locked && (
         <p style={styles.description}>{lead.description}</p>
       )}
 
-      {/* Contact info */}
       <div style={styles.contactBlock}>
         <div style={styles.detailItem}>
           <MapPin size={13} style={styles.icon} />
@@ -109,44 +106,33 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         )}
       </div>
 
-      {/* Social channels - Ticket 1.1 Fixed */}
       {!locked && lead.socialLinks && Object.values(lead.socialLinks).some(Boolean) && (
         <div style={styles.channelsRow}>
           <span style={styles.channelsLabel}>Social:</span>
           <div style={styles.channels}>
             {lead.socialLinks.linkedin  && (
               <a href={lead.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.linkedinPill }}>
-                <Linkedin size={11} /> LinkedIn
+                <Share2 size={11} /> LinkedIn
               </a>
             )}
             {lead.socialLinks.instagram && (
               <a href={lead.socialLinks.instagram} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.instagramPill }}>
-                <Instagram size={11} /> Instagram
+                <Share2 size={11} /> Instagram
               </a>
             )}
             {lead.socialLinks.facebook  && (
               <a href={lead.socialLinks.facebook} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.facebookPill }}>
-                <Facebook size={11} /> Facebook
+                <Share2 size={11} /> Facebook
               </a>
             )}
           </div>
         </div>
       )}
 
-      {/* AI outreach tip */}
       {!locked && lead.aiInsights && (
         <div style={styles.insightBox}>
           <div style={styles.insightHeader}><MessageSquare size={11} /><span>{t.leads.outreachTip}</span></div>
           <p style={styles.insightText}>{lead.aiInsights}</p>
-        </div>
-      )}
-
-      {/* Score factors */}
-      {!locked && lead.scoreExplanation && lead.scoreExplanation !== 'Basic listing' && (
-        <div style={styles.factors}>
-          {lead.scoreExplanation.split(' • ').map((f) => (
-            <span key={f} style={styles.factorPill}>{f}</span>
-          ))}
         </div>
       )}
 
@@ -170,8 +156,11 @@ const styles: Record<string, React.CSSProperties> = {
   metaRow:        { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
   title:          { fontSize: '16px', fontWeight: '600', color: 'var(--foreground)', margin: 0 },
   category:       { fontSize: '12px', color: 'var(--muted)', fontWeight: '500', textTransform: 'capitalize' },
-  ratingBox:      { display: 'flex', alignItems: 'center', gap: '3px' },
-  ratingText:     { fontSize: '11px', color: 'var(--muted)', fontWeight: '500' },
+  // Enhanced Rating Styles
+  ratingBox:      { display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fff9e6', padding: '2px 8px', borderRadius: '12px', border: '1px solid #ffeeba' },
+  ratingText:     { fontSize: '12px', color: '#92400e', fontWeight: '700' },
+  reviewsCount:   { fontSize: '11px', color: '#a16207', fontWeight: '500', opacity: 0.8 },
+  
   scoreBadge:     { display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '8px', border: '1px solid', fontSize: '12px', fontWeight: '600', flexShrink: 0 },
   scoreNum:       { fontSize: '14px' },
   scoreLabel:     { fontSize: '11px', opacity: 0.85 },
@@ -192,8 +181,6 @@ const styles: Record<string, React.CSSProperties> = {
   insightBox:     { backgroundColor: 'var(--secondary)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', borderLeft: '3px solid #6366f1', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
   insightHeader:  { display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontWeight: '700', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' },
   insightText:    { fontSize: '12px', color: 'var(--secondary-foreground)', lineHeight: '1.5', margin: 0 },
-  factors:        { display: 'flex', flexWrap: 'wrap', gap: '5px' },
-  factorPill:     { fontSize: '10px', backgroundColor: 'var(--secondary)', color: 'var(--muted)', padding: '2px 7px', borderRadius: '100px', fontWeight: '500' },
   detailsBtn: {
     width: '100%',
     padding: '9px',
