@@ -8,11 +8,11 @@
 
 ### Table: `public.user_profiles`
 - `id uuid primary key` -> references `auth.users(id)` with `ON DELETE CASCADE`.
-- `email text not null`
+- `email text` (nullable)
 - `is_paid boolean default false`
 - `searches_used integer default 0`
 - `searches_limit integer default 3`
-- `created_at timestamptz default now()`
+- `created_at timestamp with time zone default timezone('utc', now()) not null`
 
 ## Purpose of Core Fields
 - `is_paid`: differentiates free vs paid experience.
