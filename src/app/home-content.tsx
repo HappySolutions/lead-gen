@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SearchBar }    from '@/ui/components/SearchBar';
 import { LeadCard }     from '@/ui/components/LeadCard';
@@ -9,13 +9,30 @@ import { Filters }      from '@/ui/components/Filters';
 import { LeadDetails }  from '@/ui/components/LeadDetails';
 import { LanguageToggle } from '@/ui/components/LanguageToggle';
 import { ThemeToggle }    from '@/ui/components/ThemeToggle';
-import { Lead, LeadsApiResponse, LeadSortBy, SearchFilters } from '@/core/types';
+import { Lead, LeadSortBy, SearchFilters } from '@/core/types';
+import {
+  buildLeadsSearchURLSearchParams,
+  parseLeadsApiResponse,
+} from '@/core/leads-api-guard';
 import { createBrowserClient } from '@/lib/supabase.browser';
 import { Download, Target, TrendingUp, LayoutDashboard, Lock, LogOut, Filter } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const FREE_CARDS     = 3;   // how many cards are fully visible on free tier
 const WHATSAPP_NUMBER = '01282048435'; // replace with your number e.g. 201234567890
+
+/** Mirrors `parseBoolParam` in `api/leads/route.ts` for URL → state hydration. */
+function parseBoolFromSearchParam(value: string | null): boolean {
+  if (value === null) return false;
+  const t = value.trim().toLowerCase();
+  return t === '1' || t === 'true' || t === 'yes';
+}
+
+/** Stable query string for comparing our `router.replace` echo vs external navigation. */
+function canonicalSearchParamsString(sp: Pick<URLSearchParams, 'entries'>): string {
+  const entries = Array.from(sp.entries()).sort(([a], [b]) => a.localeCompare(b));
+  return new URLSearchParams(entries).toString();
+}
 
 // ─── User profile shape ───────────────────────────────────────────────────────
 interface UserProfile {
@@ -56,7 +73,13 @@ export default function HomeContent() {
     total: 0,
     totalPages: 1,
   });
-  const hydratedFromUrl = useRef(false);
+
+  /** Canonical URL we last wrote via `router.replace` (skip re-hydrate on our own echo). */
+  const lastPushedCanonicalRef = useRef('');
+  /** Next `performSearch` should not push URL (URL already matches this request — back/forward, etc.). */
+  const hydrateWithoutUrlPushRef = useRef(false);
+  const searchSeqRef = useRef(0);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   // ── Load user profile on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -80,19 +103,10 @@ export default function HomeContent() {
     page: number;
     limit: number;
   }) => {
-    const next = new URLSearchParams();
-    next.set('q', params.q);
-    next.set('loc', params.loc);
-    if (params.service) next.set('service', params.service);
-    if (params.hasWebsite) next.set('hasWebsite', '1');
-    if (params.hasPhone) next.set('hasPhone', '1');
-    if (params.hasEmail) next.set('hasEmail', '1');
-    if (params.minRating > 0) next.set('minRating', String(params.minRating));
-    if (params.sortBy !== 'score') next.set('sortBy', params.sortBy);
-    if (params.page > 1) next.set('page', String(params.page));
-    if (params.limit !== 20) next.set('limit', String(params.limit));
-    const query = next.toString();
-    router.replace(query ? `/?${query}` : '/', { scroll: false });
+    const next = buildLeadsSearchURLSearchParams(params);
+    const canon = canonicalSearchParamsString(next);
+    lastPushedCanonicalRef.current = canon;
+    router.replace(canon ? `/?${canon}` : '/', { scroll: false });
   }, [router]);
 
   // ── Sign out ───────────────────────────────────────────────────────────────
@@ -112,11 +126,23 @@ export default function HomeContent() {
     limit: number,
     shouldSyncUrl = true,
   ) => {
+    const seq = ++searchSeqRef.current;
+    searchAbortRef.current?.abort();
+    const ac = new AbortController();
+    searchAbortRef.current = ac;
+
     setLoading(true);
     setError(null);
     setLimitReached(false);
     setLastQuery({ q: query, loc: location, service });
-    if (shouldSyncUrl) {
+    // Fresh fetch: drop stale list + total so UI and meta stay aligned (no ghost cards).
+    setLeads([]);
+    setPagination((p) => ({ ...p, total: 0, totalPages: 1 }));
+
+    const skipUrlPush = hydrateWithoutUrlPushRef.current;
+    if (skipUrlPush) hydrateWithoutUrlPushRef.current = false;
+
+    if (shouldSyncUrl && !skipUrlPush) {
       pushSearchParams({
         q: query,
         loc: location,
@@ -131,25 +157,52 @@ export default function HomeContent() {
       });
     }
 
+    const qs = buildLeadsSearchURLSearchParams({
+      q: query,
+      loc: location,
+      service,
+      hasWebsite: nextFilters.hasWebsite,
+      hasPhone: nextFilters.hasPhone,
+      hasEmail: nextFilters.hasEmail,
+      minRating: nextFilters.minRating,
+      sortBy: nextFilters.sortBy,
+      page,
+      limit,
+    });
+
     try {
-      const url = `/api/leads?q=${encodeURIComponent(query)}&loc=${encodeURIComponent(location)}&service=${encodeURIComponent(service)}&minRating=${encodeURIComponent(String(nextFilters.minRating))}&sortBy=${encodeURIComponent(nextFilters.sortBy)}&page=${encodeURIComponent(String(page))}&limit=${encodeURIComponent(String(limit))}`;
-      const resp = await fetch(url);
+      const resp = await fetch(`/api/leads?${qs.toString()}`, { signal: ac.signal });
+
+      if (seq !== searchSeqRef.current || ac.signal.aborted) return;
 
       if (resp.status === 403) {
-        const body = await resp.json();
+        setLeads([]);
+        const body = await resp.json().catch(() => ({}));
         if (body.error === 'SEARCH_LIMIT_REACHED') {
           setLimitReached(true);
-          setLoading(false);
           return;
         }
+        setError(typeof body.error === 'string' ? body.error : 'Forbidden');
+        return;
       }
 
       if (!resp.ok) {
+        setLeads([]);
         const body = await resp.json().catch(() => ({}));
-        throw new Error(body.error ?? 'Search failed');
+        throw new Error(typeof body.error === 'string' ? body.error : 'Search failed');
       }
 
-      const data = (await resp.json()) as LeadsApiResponse;
+      const rawJson: unknown = await resp.json();
+      const data = parseLeadsApiResponse(rawJson);
+
+      if (seq !== searchSeqRef.current || ac.signal.aborted) return;
+
+      if (!data) {
+        setLeads([]);
+        setPagination((p) => ({ ...p, page, limit, total: 0, totalPages: 1 }));
+        setError('Invalid response from server');
+        return;
+      }
 
       // Update local searches_used counter from response header
       const used = resp.headers.get('X-Searches-Used');
@@ -157,24 +210,34 @@ export default function HomeContent() {
         setProfile((p) => p ? { ...p, searches_used: Number(used) } : p);
       }
 
-      setLeads(Array.isArray(data.items) ? data.items : []);
+      setLeads(data.items);
       setPagination({
-        page: data.meta?.page ?? page,
-        limit: data.meta?.limit ?? limit,
-        total: data.meta?.total ?? 0,
-        totalPages: data.meta?.totalPages ?? 1,
+        page: data.meta.page,
+        limit: data.meta.limit,
+        total: data.meta.total,
+        totalPages: data.meta.totalPages,
       });
     } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setLeads([]);
+      setPagination((p) => ({ ...p, total: 0, totalPages: 1 }));
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
-      setLoading(false);
+      if (seq === searchSeqRef.current) setLoading(false);
     }
   }, [profile, pushSearchParams]);
 
-  // ── Search submit entry ───────────────────────────────────────────────────
-  const handleSearch = async (query: string, location: string, service: string) => {
+  useEffect(() => {
+    return () => {
+      searchAbortRef.current?.abort();
+    };
+  }, []);
+
+  // ── Search submit entry (state only; fetch runs in the search useEffect) ───
+  const handleSearch = (query: string, location: string, service: string) => {
+    setLastQuery({ q: query, loc: location, service });
     setPagination((p) => ({ ...p, page: 1 }));
-    await performSearch(query, location, service, filters, 1, pagination.limit, true);
   };
 
   // ── WhatsApp upgrade redirect ──────────────────────────────────────────────
@@ -185,25 +248,21 @@ export default function HomeContent() {
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, '_blank');
   };
 
-  // ── Filters + sort ─────────────────────────────────────────────────────────
-  const processedLeads = useMemo(() => {
-    return leads
-      .filter((l) => {
-        if (filters.hasWebsite && !l.website) return false;
-        if (filters.hasPhone   && !l.phone)   return false;
-        if (filters.hasEmail   && !l.email)   return false;
-        return true;
-      });
-  }, [leads, filters]);
-
+  // Sync state from URL on every `searchParams` change (initial load, Back/Forward).
+  // Skip when the URL matches our last `router.replace` to avoid loops with `performSearch`.
   useEffect(() => {
-    if (hydratedFromUrl.current) return;
+    const canon = canonicalSearchParamsString(searchParams);
+    if (canon === lastPushedCanonicalRef.current) return;
+
+    hydrateWithoutUrlPushRef.current = true;
+    lastPushedCanonicalRef.current = canon;
+
     const q = searchParams.get('q')?.trim() ?? '';
     const loc = searchParams.get('loc')?.trim() ?? '';
     const service = searchParams.get('service')?.trim() ?? '';
-    const hasWebsite = searchParams.get('hasWebsite') === '1';
-    const hasPhone = searchParams.get('hasPhone') === '1';
-    const hasEmail = searchParams.get('hasEmail') === '1';
+    const hasWebsite = parseBoolFromSearchParam(searchParams.get('hasWebsite'));
+    const hasPhone = parseBoolFromSearchParam(searchParams.get('hasPhone'));
+    const hasEmail = parseBoolFromSearchParam(searchParams.get('hasEmail'));
     const minRating = Number(searchParams.get('minRating') ?? '0');
     const sortByParam = (searchParams.get('sortBy') ?? 'score') as LeadSortBy;
     const sortBy: LeadSortBy = ['score', 'rating', 'reviews', 'name'].includes(sortByParam) ? sortByParam : 'score';
@@ -220,43 +279,41 @@ export default function HomeContent() {
     setFilters(hydratedFilters);
     setPagination((p) => ({ ...p, page, limit }));
     setLastQuery({ q, loc, service });
-    hydratedFromUrl.current = true;
+  }, [searchParams]);
 
-    if (q && loc) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      void performSearch(q, loc, service, hydratedFilters, page, limit, false);
-    }
-  }, [performSearch, searchParams]);
-
+  // Fetch when query or server-owned params change (after URL → state sync).
   useEffect(() => {
-    if (!hydratedFromUrl.current) return;
     if (!lastQuery.q || !lastQuery.loc) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    void performSearch(lastQuery.q, lastQuery.loc, lastQuery.service, filters, pagination.page, pagination.limit, true);
-    // Trigger server-side re-query only when server-owned params change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.minRating, filters.sortBy, pagination.page, pagination.limit]);
+    void performSearch(
+      lastQuery.q,
+      lastQuery.loc,
+      lastQuery.service,
+      filters,
+      pagination.page,
+      pagination.limit,
+      true,
+    );
+  }, [
+    performSearch,
+    lastQuery.q,
+    lastQuery.loc,
+    lastQuery.service,
+    filters,
+    pagination.page,
+    pagination.limit,
+  ]);
 
   const handleFiltersChange = (nextFilters: SearchFilters) => {
-    const serverChanged = nextFilters.minRating !== filters.minRating || nextFilters.sortBy !== filters.sortBy;
+    const serverChanged =
+      nextFilters.minRating !== filters.minRating ||
+      nextFilters.sortBy !== filters.sortBy ||
+      nextFilters.hasWebsite !== filters.hasWebsite ||
+      nextFilters.hasPhone !== filters.hasPhone ||
+      nextFilters.hasEmail !== filters.hasEmail;
     setFilters(nextFilters);
     if (serverChanged) {
       setPagination((p) => ({ ...p, page: 1 }));
-      return;
-    }
-    if (lastQuery.q && lastQuery.loc) {
-      pushSearchParams({
-        q: lastQuery.q,
-        loc: lastQuery.loc,
-        service: lastQuery.service,
-        hasWebsite: nextFilters.hasWebsite,
-        hasPhone: nextFilters.hasPhone,
-        hasEmail: nextFilters.hasEmail,
-        minRating: nextFilters.minRating,
-        sortBy: nextFilters.sortBy,
-        page: pagination.page,
-        limit: pagination.limit,
-      });
     }
   };
 
@@ -264,7 +321,7 @@ export default function HomeContent() {
   const exportToCSV = () => {
     if (!profile?.is_paid) { handleUpgrade(); return; }
     const headers = ['Name', 'Category', 'Address', 'Phone', 'Email', 'Website', 'Rating', 'Reviews', 'Score'];
-    const rows = processedLeads.map((l) => [
+    const rows = leads.map((l) => [
       l.name, l.category, l.address, l.phone ?? '', l.email ?? '',
       l.website ?? '', l.rating ?? '', l.reviews ?? '', l.score,
     ]);
@@ -278,7 +335,7 @@ export default function HomeContent() {
   const searchesLeft = profile 
     ? Math.max(0, (profile.searches_limit ?? 3) - (profile.searches_used ?? 0)) 
     : null;
-  const lockedCount  = isPaid ? 0 : Math.max(0, processedLeads.length - FREE_CARDS);
+  const lockedCount  = isPaid ? 0 : Math.max(0, leads.length - FREE_CARDS);
 
   return (
     <main style={styles.container}>
@@ -313,8 +370,8 @@ export default function HomeContent() {
             </>
           )}
 
-          {leads.length > 0 && (
-            <div style={styles.stat}><TrendingUp size={14} color="#10b981" /><span>{leads.length} leads</span></div>
+          {pagination.total > 0 && (
+            <div style={styles.stat}><TrendingUp size={14} color="#10b981" /><span>{pagination.total} leads</span></div>
           )}
 
           {/* Sign out */}
@@ -354,8 +411,12 @@ export default function HomeContent() {
         </div>
       )}
 
-      {/* Results or Loading Skeletons */}
-      {(loading || leads.length > 0) && !limitReached && (
+      {/* Results or Loading Skeletons — `lastQuery` keeps shell after zero-result searches (meta.total === 0). */}
+      {!limitReached &&
+        (loading ||
+          pagination.total > 0 ||
+          leads.length > 0 ||
+          (Boolean(lastQuery.q.trim()) && Boolean(lastQuery.loc.trim()))) && (
         <div>
           <div style={styles.resultsBar}>
             <Filters filters={filters} onChange={handleFiltersChange} />
@@ -371,9 +432,9 @@ export default function HomeContent() {
               Array.from({ length: 6 }).map((_, i) => (
                 <LeadCardSkeleton key={i} />
               ))
-            ) : processedLeads.length > 0 ? (
-              // Show actual leads
-              processedLeads.map((lead, i) => (
+            ) : leads.length > 0 ? (
+              // Show actual leads (server-filtered + paginated)
+              leads.map((lead, i) => (
                 <LeadCard
                   key={lead.id}
                   lead={lead}
@@ -409,7 +470,12 @@ export default function HomeContent() {
       )}
 
       {/* Empty state */}
-      {!loading && !limitReached && leads.length === 0 && !error && (
+      {!loading &&
+        !limitReached &&
+        leads.length === 0 &&
+        pagination.total === 0 &&
+        !(lastQuery.q.trim() && lastQuery.loc.trim()) &&
+        !error && (
         <div style={styles.empty}>
           <LayoutDashboard size={44} color="#e2e8f0" />
           <h3 style={styles.emptyTitle}>Ready to find clients?</h3>
