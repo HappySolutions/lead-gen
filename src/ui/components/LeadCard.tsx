@@ -47,12 +47,11 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
           <h3 style={styles.title}>{lead.name}</h3>
           <div style={styles.metaRow}>
             <span style={styles.category}>{lead.category}</span>
-            {/* Ticket 1.2: Modern Ratings UI */}
             {lead.rating !== undefined && (
               <div style={styles.ratingBox}>
                 <Star size={13} fill="#ffb800" color="#ffb800" />
                 <span style={styles.ratingText}>{lead.rating}</span>
-                <span style={styles.reviewsCount}>({lead.reviews ?? 0} {t.leads.reviews || 'reviews'})</span>
+                <span style={styles.reviewsCount}>({lead.reviews ?? 0})</span>
               </div>
             )}
           </div>
@@ -60,7 +59,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         <div style={{ ...styles.scoreBadge, backgroundColor: scoreColor.bg, borderColor: scoreColor.border, color: scoreColor.text }}>
           <Zap size={12} />
           <span style={styles.scoreNum}>{lead.score}</span>
-          <span style={styles.scoreLabel}>{scoreLabel}</span>
         </div>
       </div>
 
@@ -71,14 +69,10 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         </div>
       )}
 
-      {lead.description && !locked && (
-        <p style={styles.description}>{lead.description}</p>
-      )}
-
       <div style={styles.contactBlock}>
         <div style={styles.detailItem}>
           <MapPin size={13} style={styles.icon} />
-          <span>{lead.address}</span>
+          <span style={styles.truncateText}>{lead.address}</span>
         </div>
         {(lead.email || locked) && (
           <div style={{ ...styles.detailItem, ...blurred }}>
@@ -96,19 +90,11 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
             </a>
           </div>
         )}
-        {lead.website && (
-          <div style={{ ...styles.detailItem, ...(locked ? blurred : {}) }}>
-            <Globe size={13} style={styles.icon} />
-            <a href={locked ? undefined : lead.website} target="_blank" rel="noopener noreferrer" style={styles.link}>
-              {locked ? 'www.example•••.com' : (() => { try { return new URL(lead.website!).hostname; } catch { return lead.website; } })()}
-            </a>
-          </div>
-        )}
       </div>
 
+      {/* Ticket 1.3: Responsive Social Buttons */}
       {!locked && lead.socialLinks && Object.values(lead.socialLinks).some(Boolean) && (
         <div style={styles.channelsRow}>
-          <span style={styles.channelsLabel}>Social:</span>
           <div style={styles.channels}>
             {lead.socialLinks.linkedin  && (
               <a href={lead.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.linkedinPill }}>
@@ -129,13 +115,6 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
         </div>
       )}
 
-      {!locked && lead.aiInsights && (
-        <div style={styles.insightBox}>
-          <div style={styles.insightHeader}><MessageSquare size={11} /><span>{t.leads.outreachTip}</span></div>
-          <p style={styles.insightText}>{lead.aiInsights}</p>
-        </div>
-      )}
-
       <button
         onClick={() => onViewDetails?.(lead)}
         style={{ ...styles.detailsBtn, ...(locked ? styles.detailsBtnLocked : {}) }}
@@ -148,55 +127,32 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
 };
 
 const styles: Record<string, React.CSSProperties> = {
-  card:           { backgroundColor: 'var(--card)', borderRadius: '14px', padding: '20px', border: '1px solid var(--secondary)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative' },
-  cardLocked:     { opacity: 0.75, backgroundColor: 'var(--secondary)' },
-  lockBadge:      { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: '700', color: '#6366f1', backgroundColor: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 8px', borderRadius: '6px', alignSelf: 'flex-start' },
-  header:         { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' },
-  mainInfo:       { display: 'flex', flexDirection: 'column', gap: '3px' },
+  card:           { backgroundColor: 'var(--card)', borderRadius: '12px', padding: '16px', border: '1px solid var(--secondary)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', width: '100%', maxWidth: '450px' },
+  cardLocked:     { opacity: 0.8 },
+  lockBadge:      { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: '700', color: '#6366f1', backgroundColor: '#f5f3ff', padding: '2px 8px', borderRadius: '4px', alignSelf: 'flex-start' },
+  header:         { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' },
+  mainInfo:       { display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 },
   metaRow:        { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
-  title:          { fontSize: '16px', fontWeight: '600', color: 'var(--foreground)', margin: 0 },
-  category:       { fontSize: '12px', color: 'var(--muted)', fontWeight: '500', textTransform: 'capitalize' },
-  // Enhanced Rating Styles
-  ratingBox:      { display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fff9e6', padding: '2px 8px', borderRadius: '12px', border: '1px solid #ffeeba' },
-  ratingText:     { fontSize: '12px', color: '#92400e', fontWeight: '700' },
-  reviewsCount:   { fontSize: '11px', color: '#a16207', fontWeight: '500', opacity: 0.8 },
-  
-  scoreBadge:     { display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 9px', borderRadius: '8px', border: '1px solid', fontSize: '12px', fontWeight: '600', flexShrink: 0 },
-  scoreNum:       { fontSize: '14px' },
-  scoreLabel:     { fontSize: '11px', opacity: 0.85 },
-  gapsRow:        { display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', padding: '6px 10px' },
-  gapsText:       { fontSize: '12px', color: '#f59e0b', fontWeight: '500' },
-  description:    { fontSize: '12px', color: 'var(--muted)', lineHeight: '1.5', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const, overflow: 'hidden' },
-  contactBlock:   { display: 'flex', flexDirection: 'column', gap: '7px' },
-  detailItem:     { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--secondary-foreground)' },
+  title:          { fontSize: '15px', fontWeight: '600', color: 'var(--foreground)', margin: 0, wordBreak: 'break-word' },
+  category:       { fontSize: '11px', color: 'var(--muted)', fontWeight: '500' },
+  ratingBox:      { display: 'flex', alignItems: 'center', gap: '3px', backgroundColor: '#fff9e6', padding: '1px 6px', borderRadius: '8px' },
+  ratingText:     { fontSize: '11px', color: '#92400e', fontWeight: '700' },
+  reviewsCount:   { fontSize: '10px', color: '#a16207', opacity: 0.7 },
+  scoreBadge:     { display: 'flex', alignItems: 'center', gap: '3px', padding: '4px 8px', borderRadius: '6px', border: '1px solid', fontSize: '12px', fontWeight: '700' },
+  scoreNum:       { fontSize: '13px' },
+  gapsRow:        { display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(245, 158, 11, 0.05)', borderRadius: '6px', padding: '6px' },
+  gapsText:       { fontSize: '11px', color: '#d97706', fontWeight: '500' },
+  contactBlock:   { display: 'flex', flexDirection: 'column', gap: '6px' },
+  detailItem:     { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' },
   icon:           { color: 'var(--muted-foreground)', flexShrink: 0 },
-  link:           { color: '#6366f1', textDecoration: 'none', fontWeight: '500', wordBreak: 'break-all' },
-  channelsRow:    { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' },
-  channelsLabel:  { fontSize: '11px', color: '#94a3b8', fontWeight: '500' },
+  link:           { color: '#6366f1', textDecoration: 'none', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  truncateText:   { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  channelsRow:    { marginTop: '4px' },
   channels:       { display: 'flex', gap: '6px', flexWrap: 'wrap' },
-  pill:           { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '600', padding: '3px 8px', borderRadius: '6px', textDecoration: 'none', backgroundColor: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' },
+  pill:           { display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', fontWeight: '600', padding: '4px 8px', borderRadius: '6px', textDecoration: 'none', border: '1px solid #e2e8f0' },
   linkedinPill:   { backgroundColor: '#eff6ff', color: '#1d4ed8', borderColor: '#bfdbfe' },
   instagramPill:  { backgroundColor: '#fdf4ff', color: '#7e22ce', borderColor: '#e9d5ff' },
   facebookPill:   { backgroundColor: '#eff6ff', color: '#1e40af', borderColor: '#bfdbfe' },
-  insightBox:     { backgroundColor: 'var(--secondary)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border)', borderLeft: '3px solid #6366f1', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
-  insightHeader:  { display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontWeight: '700', color: '#6366f1', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' },
-  insightText:    { fontSize: '12px', color: 'var(--secondary-foreground)', lineHeight: '1.5', margin: 0 },
-  detailsBtn: {
-    width: '100%',
-    padding: '9px',
-    borderRadius: '8px',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: 'var(--border)',
-    backgroundColor: 'transparent',
-    color: 'var(--secondary-foreground)',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer',
-  },
-  detailsBtnLocked: {
-    cursor: 'not-allowed',
-    color: 'var(--muted-foreground)',
-    borderColor: 'var(--secondary)',
-  },
+  detailsBtn:     { width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--background)', color: 'var(--foreground)', fontSize: '13px', fontWeight: '600', cursor: 'pointer', marginTop: '4px' },
+  detailsBtnLocked: { cursor: 'not-allowed', opacity: 0.5 },
 };
