@@ -11,7 +11,7 @@
  *         Used on a cache MISS for final results so repeated searches for the
  *         same location still avoid redundant Apify / OSM calls.
  *
- * GET /api/leads?q=gyms&loc=Cairo&service=web+design&minRating=0&sortBy=score&page=1&limit=20
+ * GET /api/leads?q=gyms&loc=Cairo&service=...&hasWebsite=1&hasPhone=1&hasEmail=1&minRating=0&sortBy=score&page=1&limit=20
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -26,6 +26,11 @@ import { finalResultsCache, apifyRawCache, osmRawCache } from '@/lib/cache';
 
 export const maxDuration = 60;
 
+/**
+ * Hard cap on candidates persisted to L1 per discovery request (Apify/OSM/API cost control).
+ * Filters, sort, and pagination run in `buildLeadsPayload` **after** this pool — intentional product
+ * / cost-saving boundary (explicitly out of scope for Epic 2 QA).
+ */
 const MAX_RESULTS  = 20;
 const TOP_N_FOR_AI =  5;
 const DEFAULT_PAGE = 1;
@@ -37,8 +42,37 @@ type EnrichmentExtras = {
   description?: string;
 };
 
+function parseBoolParam(searchParams: URLSearchParams, key: string): boolean {
+  const v = searchParams.get(key);
+  if (v === null) return false;
+  const t = v.trim().toLowerCase();
+  return t === '1' || t === 'true' || t === 'yes';
+}
+
+/** Treat non-finite ratings as 0 for minRating filter and stable sorts. */
+function leadRatingStars(lead: Lead): number {
+  const r = lead.rating;
+  return typeof r === 'number' && Number.isFinite(r) ? r : 0;
+}
+
+function finiteNumberOrZero(n: unknown): number {
+  return typeof n === 'number' && Number.isFinite(n) ? n : 0;
+}
+
+/** Same finite-or-zero semantics as `leadRatingStars`, for stable sort comparators. */
+function leadScoreSortValue(lead: Lead): number {
+  return finiteNumberOrZero(lead.score);
+}
+
+function leadReviewSortValue(lead: Lead): number {
+  return finiteNumberOrZero(lead.reviews);
+}
+
 function buildLeadsPayload(
   allLeads: Lead[],
+  hasWebsite: boolean,
+  hasPhone: boolean,
+  hasEmail: boolean,
   minRating: number,
   sortBy: LeadSortBy,
   page: number,
@@ -48,11 +82,17 @@ function buildLeadsPayload(
   service: string,
 ): LeadsApiResponse {
   const filteredAndSorted = allLeads
-    .filter((lead) => (lead.rating ?? 0) >= minRating)
+    .filter((lead) => {
+      if (hasWebsite && !lead.website) return false;
+      if (hasPhone && !lead.phone) return false;
+      if (hasEmail && !lead.email) return false;
+      return true;
+    })
+    .filter((lead) => leadRatingStars(lead) >= minRating)
     .sort((a, b) => {
-      if (sortBy === 'score') return b.score - a.score;
-      if (sortBy === 'rating') return (b.rating ?? -1) - (a.rating ?? -1);
-      if (sortBy === 'reviews') return (b.reviews ?? -1) - (a.reviews ?? -1);
+      if (sortBy === 'score') return leadScoreSortValue(b) - leadScoreSortValue(a);
+      if (sortBy === 'rating') return leadRatingStars(b) - leadRatingStars(a);
+      if (sortBy === 'reviews') return leadReviewSortValue(b) - leadReviewSortValue(a);
       return a.name.localeCompare(b.name);
     });
 
@@ -71,6 +111,9 @@ function buildLeadsPayload(
       totalPages,
       sortBy,
       minRating,
+      hasWebsite,
+      hasPhone,
+      hasEmail,
       query: q,
       location: loc,
       service,
@@ -92,6 +135,9 @@ export async function GET(request: NextRequest) {
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : DEFAULT_PAGE;
   const rawLimit = Number(searchParams.get('limit') ?? String(DEFAULT_LIMIT));
   const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(MAX_LIMIT, Math.floor(rawLimit)) : DEFAULT_LIMIT;
+  const hasWebsite = parseBoolParam(searchParams, 'hasWebsite');
+  const hasPhone = parseBoolParam(searchParams, 'hasPhone');
+  const hasEmail = parseBoolParam(searchParams, 'hasEmail');
 
   if (!q || !loc) {
     return NextResponse.json(
@@ -136,7 +182,19 @@ export async function GET(request: NextRequest) {
   // ── L1: Final results cache (cache HITs don't count as a new search) ────────
   const cached = await finalResultsCache.get(q, loc, service);
   if (cached !== null) {
-    const payload = buildLeadsPayload(cached, minRating, sortBy, page, limit, q, loc, service);
+    const payload = buildLeadsPayload(
+      cached,
+      hasWebsite,
+      hasPhone,
+      hasEmail,
+      minRating,
+      sortBy,
+      page,
+      limit,
+      q,
+      loc,
+      service,
+    );
     return NextResponse.json(payload, {
       headers: {
         ...commonHeaders,
@@ -169,21 +227,20 @@ export async function GET(request: NextRequest) {
     const rawLeads = mergeLeads(osmLeads, apifyLeads);
 
     if (rawLeads.length === 0) {
-      const empty: LeadsApiResponse = {
-        items: [],
-        meta: {
-          page: 1,
-          limit,
-          total: 0,
-          totalPages: 1,
-          sortBy,
-          minRating,
-          query: q,
-          location: loc,
-          service,
-        },
-      };
-      return NextResponse.json(empty, {
+      const payload = buildLeadsPayload(
+        [],
+        hasWebsite,
+        hasPhone,
+        hasEmail,
+        minRating,
+        sortBy,
+        page,
+        limit,
+        q,
+        loc,
+        service,
+      );
+      return NextResponse.json(payload, {
         headers: { ...commonHeaders, 'X-Cache': 'MISS' },
       });
     }
@@ -196,7 +253,9 @@ export async function GET(request: NextRequest) {
       return { lead, score, explanation, serviceGaps };
     });
 
-    const top = scored.sort((a, b) => b.score - a.score).slice(0, MAX_RESULTS);
+    const top = scored
+      .sort((a, b) => finiteNumberOrZero(b.score) - finiteNumberOrZero(a.score))
+      .slice(0, MAX_RESULTS);
 
     const aiResults = await Promise.all(
       top.map(async ({ lead, serviceGaps }, i) => {
@@ -228,10 +287,22 @@ export async function GET(request: NextRequest) {
       aiInsights:       aiResults[i]?.insights ?? undefined,
     }));
 
-    // ── Persist full scored list to L1 (minRating / sortBy / page applied on read) ─
+    // ── Persist full scored list to L1 (filters / sort / page applied on read) ─
     await finalResultsCache.set(q, loc, service, leads);
 
-    const payload = buildLeadsPayload(leads, minRating, sortBy, page, limit, q, loc, service);
+    const payload = buildLeadsPayload(
+      leads,
+      hasWebsite,
+      hasPhone,
+      hasEmail,
+      minRating,
+      sortBy,
+      page,
+      limit,
+      q,
+      loc,
+      service,
+    );
 
     // ── Increment searches_used for free-tier users ──────────────────────────
     if (!profile.is_paid) {
