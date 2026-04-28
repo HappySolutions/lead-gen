@@ -1,0 +1,30 @@
+{
+  "description": "Example valid /api/leads JSON for Playwright route.fulfill or manual testing.",
+  "items": [
+    {
+      "id": "stub-1",
+      "name": "Stub Gym",
+      "category": "gym",
+      "address": "1 Test St",
+      "location": { "lat": 30.0, "lng": 31.0 },
+      "score": 70,
+      "scoreLabel": "High Potential",
+      "scoreExplanation": "Good fit",
+      "website": "https://example.com"
+    }
+  ],
+  "meta": {
+    "page": 1,
+    "limit": 20,
+    "total": 1,
+    "totalPages": 1,
+    "sortBy": "score",
+    "minRating": 0,
+    "hasWebsite": false,
+    "hasPhone": false,
+    "hasEmail": false,
+    "query": "gyms",
+    "location": "Cairo",
+    "service": ""
+  }
+}
