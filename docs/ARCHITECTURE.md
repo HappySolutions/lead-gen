@@ -14,7 +14,7 @@ It combines local business discovery, enrichment, scoring, and outreach hints.
 
 ## Request and Data Flow
 1. User submits search from `src/app/page.tsx`.
-2. Client calls `GET /api/leads`.
+2. Client calls `GET /api/leads` with query parameters aligned via `buildLeadsSearchURLSearchParams` (`src/core/leads-api-guard.ts`) so the URL and fetch string stay consistent.
 3. `src/app/api/leads/route.ts` validates session and usage limits.
 4. Services gather and enrich lead data:
    - `src/services/places.ts`
@@ -22,8 +22,9 @@ It combines local business discovery, enrichment, scoring, and outreach hints.
    - `src/services/enrichment.ts`
    - `src/services/ai.ts`
 5. Scoring logic from `src/core/scoring.ts` ranks opportunities.
-6. API returns normalized lead payload to UI.
-7. UI applies local filters/sorting and renders cards/details.
+6. **`buildLeadsPayload`** in `route.ts` applies **server-side** filters (`hasWebsite`, `hasPhone`, `hasEmail`, `minRating`), **finite-safe** sorting (`sortBy`: score / rating / reviews / name), then pagination. See `docs/EPIC2_LEADS_API.md`.
+7. API returns `LeadsApiResponse`; the client validates with **`parseLeadsApiResponse`** before rendering.
+8. UI renders cards/details and syncs URL state; it does not re-implement the server filter/sort contract.
 
 ## Auth and Access Flow
 1. Middleware gate in `src/middleware.ts` redirects unauthenticated users to `/login`.
