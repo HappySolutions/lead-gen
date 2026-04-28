@@ -7,6 +7,7 @@ Task-to-context map. Use this file to decide mandatory reads before any change.
 - `docs/AI_HANDOFF.md`
 - `docs/TASKING.md`
 - `docs/GIT_WORKFLOW.md`
+- `docs/TESTING.md` (when adding or changing automated tests)
 
 ## Task Type -> Required Context
 

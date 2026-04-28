@@ -158,7 +158,7 @@ export interface EnrichmentResult {
         batch.map(async (lead) => {
           if (!lead.website) return { ...lead } as T & EnrichmentResult;
           const data = await enrichWebsite(lead.website);
-          const l = lead as any;
+          const l = lead as T & Partial<EnrichmentResult>;
           // Only overwrite if we found something new, otherwise preserve existing
           return {
             ...lead,
