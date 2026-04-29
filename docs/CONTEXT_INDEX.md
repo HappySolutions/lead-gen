@@ -27,8 +27,10 @@ Task-to-context map. Use this file to decide mandatory reads before any change.
   - `src/services/enrichment.ts`
   - `src/services/ai.ts`
   - `docs/ARCHITECTURE.md`
+  - `docs/EPIC2_LEADS_API.md` (leads query contract, filters, guard)
 - Optional:
   - `src/core/scoring.ts`
+  - `src/core/leads-api-guard.ts`
 
 ### Auth / Session / Access
 - Mandatory:
