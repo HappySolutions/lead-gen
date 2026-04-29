@@ -46,3 +46,6 @@ It combines local business discovery, enrichment, scoring, and outreach hints.
 
 ## Architecture Change Policy
 Any change that alters layer boundaries, request flow, or ownership must update this file in the same task.
+
+## Automated testing
+Vitest covers unit and integration tests; Playwright covers browser-level flows. See [docs/TESTING.md](./TESTING.md) for layout, commands, and CI expectations.
