@@ -206,8 +206,8 @@ export default function HomeContent() {
 
       // Update local searches_used counter from response header
       const used = resp.headers.get('X-Searches-Used');
-      if (used && profile) {
-        setProfile((p) => p ? { ...p, searches_used: Number(used) } : p);
+      if (used) {
+        setProfile((p) => (p ? { ...p, searches_used: Number(used) } : p));
       }
 
       setLeads(data.items);
@@ -228,7 +228,7 @@ export default function HomeContent() {
     } finally {
       if (seq === searchSeqRef.current) setLoading(false);
     }
-  }, [profile, pushSearchParams]);
+  }, [pushSearchParams]);
 
   useEffect(() => {
     return () => {
@@ -278,14 +278,31 @@ export default function HomeContent() {
       sortBy,
     };
 
-    setFilters(hydratedFilters);
-    setPagination((p) => ({ ...p, page, limit }));
-    setLastQuery({ q, loc, service });
+    setFilters((prev) => {
+      if (
+        prev.hasWebsite === hydratedFilters.hasWebsite &&
+        prev.hasPhone === hydratedFilters.hasPhone &&
+        prev.hasEmail === hydratedFilters.hasEmail &&
+        prev.minRating === hydratedFilters.minRating &&
+        prev.sortBy === hydratedFilters.sortBy
+      ) {
+        return prev;
+      }
+      return hydratedFilters;
+    });
+    setPagination((p) => (p.page === page && p.limit === limit ? p : { ...p, page, limit }));
+    setLastQuery((prev) => (
+      prev.q === q && prev.loc === loc && prev.service === service
+        ? prev
+        : { q, loc, service }
+    ));
   }, [searchParams]);
 
   // Fetch when query or server-owned params change (after URL → state sync).
   useEffect(() => {
     if (!lastQuery.q || !lastQuery.loc) return;
+    // Intentional: this effect is the fetch trigger for URL/state-driven searches.
+    // Dependencies are exhaustive; performSearch is stable (does not depend on profile).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void performSearch(
       lastQuery.q,
