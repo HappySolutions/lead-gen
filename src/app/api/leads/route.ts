@@ -11,7 +11,7 @@
  *         Used on a cache MISS for final results so repeated searches for the
  *         same location still avoid redundant Apify / OSM calls.
  *
- * GET /api/leads?q=gyms&loc=Cairo&service=...&hasWebsite=1&hasPhone=1&hasEmail=1&minRating=0&sortBy=score&page=1&limit=20
+ * GET /api/leads?q=gyms&loc=Cairo&service=...&hasWebsite=1&hasPhone=1&hasEmail=1&minRating=0&sortBy=score&page=1&limit=20&lang=en
  */
 
 import { NextRequest, NextResponse } from 'next/server';
