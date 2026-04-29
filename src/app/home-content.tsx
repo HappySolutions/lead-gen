@@ -211,9 +211,11 @@ export default function HomeContent() {
       }
 
       setLeads(data.items);
+      // Preserve the requested page/limit used for this fetch so that
+      // server-side normalization does not retrigger the fetch effect.
       setPagination({
-        page: data.meta.page,
-        limit: data.meta.limit,
+        page,
+        limit,
         total: data.meta.total,
         totalPages: data.meta.totalPages,
       });
