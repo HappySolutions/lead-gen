@@ -25,11 +25,12 @@ export async function GET() {
   }
 
   // Try to get existing profile
-  let { data: profile, error } = await supabase
+  const { data: profileRow, error } = await supabase
     .from('user_profiles')
     .select('id, email, is_paid, searches_used, searches_limit')
     .eq('id', session.user.id)
     .single();
+  let profile = profileRow;
 
   // If profile doesn't exist, create it (fallback for missing trigger)
   if (error || !profile) {
