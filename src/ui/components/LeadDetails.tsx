@@ -53,7 +53,7 @@ export const LeadDetails: React.FC<LeadDetailsProps> = ({ lead, onClose }) => {
         <div style={styles.content}>
           <div style={{ ...styles.mainGrid, direction: isRTL ? 'rtl' : 'ltr' }}>
             <section style={styles.section}>
-              <h4 style={styles.sectionTitle}>{isRTL ? 'معلومات الاتصال' : 'Contact Information'}</h4>
+              <h4 style={styles.sectionTitle}>{t.details.contactInfo}</h4>
               <div style={styles.infoList}>
                 <div style={styles.infoItem}>
                   <MapPin size={16} color="#94a3b8" />
@@ -82,16 +82,16 @@ export const LeadDetails: React.FC<LeadDetailsProps> = ({ lead, onClose }) => {
                 style={styles.mapLink}
               >
                 <ExternalLink size={16} />
-                {isRTL ? 'فتح في خرائط جوجل' : 'Open in Google Maps'}
+                {t.details.openInMaps}
               </a>
             </section>
 
             <section style={styles.section}>
-              <h4 style={styles.sectionTitle}>{isRTL ? 'تحليل AI والدرجات' : 'AI Analysis & Scoring'}</h4>
+              <h4 style={styles.sectionTitle}>{t.details.aiAnalysis}</h4>
               <div style={styles.scoreBreakdown}>
-                <ScoreBar label={isRTL ? 'جودة البيانات' : 'Data Quality'} value={lead.score >= 50 ? 90 : 60} color="#6366f1" />
-                <ScoreBar label={isRTL ? 'الاكتمال' : 'Completeness'} value={lead.website && lead.phone ? 100 : 70} color="#10b981" />
-                <ScoreBar label={isRTL ? 'مصداقية AI' : 'AI Credibility'} value={lead.score >= 75 ? 95 : 55} color="#f59e0b" />
+                <ScoreBar label={t.details.dataQuality} value={lead.score >= 50 ? 90 : 60} color="#6366f1" />
+                <ScoreBar label={t.details.completeness} value={lead.website && lead.phone ? 100 : 70} color="#10b981" />
+                <ScoreBar label={t.details.aiCredibility} value={lead.score >= 75 ? 95 : 55} color="#f59e0b" />
               </div>
               
               {lead.aiInsights && (

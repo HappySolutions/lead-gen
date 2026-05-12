@@ -52,6 +52,32 @@ export interface Dictionary {
     title: string;
     description: string;
   };
+  details: {
+    contactInfo: string;
+    openInMaps: string;
+    aiAnalysis: string;
+    dataQuality: string;
+    completeness: string;
+    aiCredibility: string;
+    social: string;
+  };
+  auth: {
+    signOut: string;
+  };
+  profile: {
+    pro: string;
+    freeSearchesLeft: (count: number) => string;
+    zeroSearchesLeft: string;
+  };
+  upgrade: {
+    limitReachedTitle: (limit: number) => string;
+    limitReachedSub: string;
+    button: string;
+    unlockButton: string;
+    unlockTitle: (count: number) => string;
+    unlockDescription: string;
+    whatsappMessage: (email: string) => string;
+  };
 }
 
 export const en: Dictionary = {
@@ -101,7 +127,7 @@ export const en: Dictionary = {
     upgradeDescription:
       'Upgrade to unlock all contact details, emails, social links and CSV export.',
     unlockAllLeads: 'Unlock all leads',
-    found: 'leads found',
+    found: 'leads',
     reviews: 'reviews',
     aiInsight: 'AI INSIGHT',
     outreachTip: 'Outreach tip',
@@ -110,6 +136,32 @@ export const en: Dictionary = {
     title: 'Ready to find clients?',
     description:
       'Enter what you sell (e.g. "web design") and who to target (e.g. "restaurants") to get a scored list of prospects with contact info.',
+  },
+  details: {
+    contactInfo: 'Contact Information',
+    openInMaps: 'Open in Google Maps',
+    aiAnalysis: 'AI Analysis & Scoring',
+    dataQuality: 'Data Quality',
+    completeness: 'Completeness',
+    aiCredibility: 'AI Credibility',
+    social: 'Social',
+  },
+  auth: {
+    signOut: 'Sign out',
+  },
+  profile: {
+    pro: 'Pro',
+    freeSearchesLeft: (count: number) => `${count} search${count === 1 ? '' : 'es'} left`,
+    zeroSearchesLeft: '0 searches left',
+  },
+  upgrade: {
+    limitReachedTitle: (limit: number) => `You've used all ${limit} free searches.`,
+    limitReachedSub: 'Contact us on WhatsApp to upgrade and get unlimited access.',
+    button: 'Upgrade via WhatsApp',
+    unlockButton: 'Unlock via WhatsApp',
+    unlockTitle: (count: number) => `${count} more leads are hidden.`,
+    unlockDescription: 'Pay once and get full access to all leads, contact info, and CSV export.',
+    whatsappMessage: (email: string) => `Hi, I want to upgrade my LeadGeni account.\nEmail: ${email}`,
   },
 };
 
@@ -160,7 +212,7 @@ export const ar: Dictionary = {
     upgradeDescription:
       'قم بالترقية لإلغاء قفل جميع بيانات التواصل والبريد والروابط الاجتماعية وتصدير CSV.',
     unlockAllLeads: 'افتح جميع العملاء',
-    found: 'عملاء تم العثور عليهم',
+    found: 'عملاء',
     reviews: 'تقييم',
     aiInsight: 'رؤية الذكاء الاصطناعي',
     outreachTip: 'نصيحة للتواصل',
@@ -169,5 +221,31 @@ export const ar: Dictionary = {
     title: 'هل أنت مستعد للعثور على عملاء؟',
     description:
       'أدخل ما تبيعه (مثلاً "تصميم مواقع") ومن تستهدف (مثلاً "مطاعم") للحصول على قائمة عملاء محتملين مع بيانات التواصل.',
+  },
+  details: {
+    contactInfo: 'بيانات التواصل',
+    openInMaps: 'فتح في خرائط جوجل',
+    aiAnalysis: 'تحليل الذكاء الاصطناعي والتقييم',
+    dataQuality: 'جودة البيانات',
+    completeness: 'الاكتمال',
+    aiCredibility: 'مصداقية الذكاء الاصطناعي',
+    social: 'التواصل الاجتماعي',
+  },
+  auth: {
+    signOut: 'تسجيل الخروج',
+  },
+  profile: {
+    pro: 'احترافي',
+    freeSearchesLeft: (count: number) => `بقي ${count} ${count === 1 ? 'بحث' : 'عمليات بحث'}`,
+    zeroSearchesLeft: 'انتهت عمليات البحث',
+  },
+  upgrade: {
+    limitReachedTitle: (limit: number) => `لقد استخدمت جميع عمليات البحث المجانية (${limit}).`,
+    limitReachedSub: 'تواصل معنا عبر واتساب للترقية والحصول على وصول غير محدود.',
+    button: 'ترقية عبر واتساب',
+    unlockButton: 'فتح عبر واتساب',
+    unlockTitle: (count: number) => `هناك ${count} عملاء إضافيين مخفيين.`,
+    unlockDescription: 'ادفع مرة واحدة واحصل على وصول كامل لجميع العملاء وبيانات التواصل وتصدير CSV.',
+    whatsappMessage: (email: string) => `مرحباً، أريد ترقية حسابي في LeadGeni.\nالبريد الإلكتروني: ${email}`,
   },
 };
