@@ -168,7 +168,6 @@ export default function Home() {
     : null;
   const lockedCount = isPaid ? 0 : Math.max(0, processedLeads.length - FREE_CARDS);
 
-export default function Page() {
   return (
     <main style={styles.container}>
 
