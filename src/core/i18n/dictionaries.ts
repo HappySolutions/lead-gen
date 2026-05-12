@@ -47,6 +47,8 @@ export interface Dictionary {
     reviews: string;
     aiInsight: string;
     outreachTip: string;
+    noResults: string;
+    adjustFilters: string;
   };
   emptyState: {
     title: string;
@@ -131,6 +133,8 @@ export const en: Dictionary = {
     reviews: 'reviews',
     aiInsight: 'AI INSIGHT',
     outreachTip: 'Outreach tip',
+    noResults: 'No results match your current filters.',
+    adjustFilters: 'Try adjusting the rating or requirements.',
   },
   emptyState: {
     title: 'Ready to find clients?',
@@ -216,6 +220,8 @@ export const ar: Dictionary = {
     reviews: 'تقييم',
     aiInsight: 'رؤية الذكاء الاصطناعي',
     outreachTip: 'نصيحة للتواصل',
+    noResults: 'لا توجد نتائج تطابق التصفية الحالية.',
+    adjustFilters: 'جرب تعديل التقييم أو المتطلبات.',
   },
   emptyState: {
     title: 'هل أنت مستعد للعثور على عملاء؟',

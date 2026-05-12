@@ -92,14 +92,13 @@ export default function Home() {
       }
 
       const data = await resp.json();
+      setLeads(data.items || []);
 
       // Update local searches_used counter from response header
       const used = resp.headers.get('X-Searches-Used');
       if (used && profile) {
         setProfile((p) => p ? { ...p, searches_used: Number(used) } : p);
       }
-
-      setLeads(data);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -261,7 +260,7 @@ export default function Home() {
             ) : (
               <div style={styles.noResults}>
                 <Filter size={32} color="var(--muted-foreground)" />
-                <p>No results match your current filters. Try adjusting the rating or requirements.</p>
+                <p>{t.leads.noResults} {t.leads.adjustFilters}</p>
               </div>
             )}
           </div>
