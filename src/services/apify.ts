@@ -233,10 +233,11 @@ export async function fetchApifyLeads(
   }
 
   try {
-    console.log(`[apify] Starting Google Maps search: "${query}" in "${location}"`);
+    const locationWithContext = /egypt/i.test(location) ? location : `${location}, Egypt`;
+    console.log(`[apify] Starting Google Maps search: "${query}" in "${locationWithContext}"`);
 
-    const searchTerms = [`${query} in ${location}`];
-    const { runId, datasetId } = await startActorRun(searchTerms, location);
+    const searchTerms = [`${query} in ${locationWithContext}`];
+    const { runId, datasetId } = await startActorRun(searchTerms, locationWithContext);
 
     console.log(`[apify] Run started: ${runId}, dataset: ${datasetId}`);
 
