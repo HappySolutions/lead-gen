@@ -57,18 +57,18 @@ export interface Dictionary {
 export const en: Dictionary = {
   branding: {
     name: 'LeadGeni',
-    tagline: 'Find businesses that need what you sell',
+    tagline: 'Find businesses that need your service',
   },
   header: {
-    subtitle: 'Find businesses that need what you sell',
+    subtitle: 'Find businesses that need your service',
   },
   hero: {
-    title: 'Find businesses that need what you sell',
+    title: 'Find businesses that need your service',
     description:
-      'Tell us what you sell and who you want to sell to. We find local businesses with the gaps your service fills — ranked by how likely they are to buy.',
+      'Tell us about your service and who you want to sell to. We find local businesses with the gaps your service fills — ranked by how likely they are to buy.',
   },
   search: {
-    servicePlaceholder: 'What do you sell? (e.g. web design, accounting, SEO)',
+    servicePlaceholder: 'What service do you offer? (e.g. web design, accounting, SEO)',
     queryPlaceholder: 'Who do you want to sell to? (e.g. restaurants, clinics, gyms)',
     locationPlaceholder: 'City or area',
     button: 'Find leads',
@@ -116,18 +116,18 @@ export const en: Dictionary = {
 export const ar: Dictionary = {
   branding: {
     name: 'LeadGeni',
-    tagline: 'اعثر على شركات تحتاج ما تبيعه',
+    tagline: 'اعثر على شركات تحتاج خدماتك',
   },
   header: {
-    subtitle: 'اعثر على شركات تحتاج ما تبيعه',
+    subtitle: 'اعثر على شركات تحتاج خدماتك',
   },
   hero: {
-    title: 'اعثر على شركات تحتاج ما تبيعه',
+    title: 'اعثر على شركات تحتاج خدماتك',
     description:
-      'أخبرنا بما تبيعه ومن تريد البيع له. سنعثر على شركات محلية لديها فجوات يمكن لخدمتك سدّها — مرتبة حسب احتمالية الشراء.',
+      'أخبرنا بما تقدمه من خدمات ولمن تريد البيع له. سنعثر على شركات محلية لديها فجوات يمكن لخدمتك سدّها — مرتبة حسب احتمالية الشراء.',
   },
   search: {
-    servicePlaceholder: 'ماذا تبيع؟ (مثلاً: تصميم مواقع، محاسبة، سيو)',
+    servicePlaceholder: 'ما هي الخدمة التي تقدمها؟ (مثلاً: تصميم مواقع، محاسبة، سيو)',
     queryPlaceholder: 'من تريد البيع له؟ (مثلاً: مطاعم، عيادات، نوادٍ رياضية)',
     locationPlaceholder: 'المدينة أو المنطقة',
     button: 'ابحث عن عملاء',

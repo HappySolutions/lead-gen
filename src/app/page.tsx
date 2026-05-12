@@ -2,36 +2,36 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { SearchBar }    from '@/ui/components/SearchBar';
-import { LeadCard }     from '@/ui/components/LeadCard';
+import { SearchBar } from '@/ui/components/SearchBar';
+import { LeadCard } from '@/ui/components/LeadCard';
 import { LeadCardSkeleton } from '@/ui/components/LeadCardSkeleton';
-import { Filters }      from '@/ui/components/Filters';
-import { LeadDetails }  from '@/ui/components/LeadDetails';
+import { Filters } from '@/ui/components/Filters';
+import { LeadDetails } from '@/ui/components/LeadDetails';
 import { LanguageToggle } from '@/ui/components/LanguageToggle';
-import { ThemeToggle }    from '@/ui/components/ThemeToggle';
+import { ThemeToggle } from '@/ui/components/ThemeToggle';
 import { Lead, SearchFilters } from '@/core/types';
 import { createBrowserClient } from '@/lib/supabase.browser';
 import { Download, Target, TrendingUp, LayoutDashboard, Lock, MapPin, LogOut, Filter } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const FREE_CARDS     = 3;   // how many cards are fully visible on free tier
+const FREE_CARDS = 3;   // how many cards are fully visible on free tier
 const WHATSAPP_NUMBER = '01282048435'; // replace with your number e.g. 201234567890
 
 const LOADING_STEPS = [
-  { label: 'Searching Google Maps...',    duration: 8_000  },
+  { label: 'Searching Google Maps...', duration: 8_000 },
   { label: 'Collecting business data...', duration: 10_000 },
-  { label: 'Scraping contact details...', duration: 8_000  },
-  { label: 'Enriching website data...',   duration: 6_000  },
-  { label: 'Scoring leads...',            duration: 3_000  },
-  { label: 'Generating outreach tips...', duration: 5_000  },
+  { label: 'Scraping contact details...', duration: 8_000 },
+  { label: 'Enriching website data...', duration: 6_000 },
+  { label: 'Scoring leads...', duration: 3_000 },
+  { label: 'Generating outreach tips...', duration: 5_000 },
 ];
 
 // ─── User profile shape ───────────────────────────────────────────────────────
 interface UserProfile {
-  id:             string;
-  email:          string;
-  is_paid:        boolean;
-  searches_used:  number;
+  id: string;
+  email: string;
+  is_paid: boolean;
+  searches_used: number;
   searches_limit: number;
 }
 
@@ -40,14 +40,14 @@ interface UserProfile {
 export default function Home() {
   const supabase = createBrowserClient();
 
-  const [profile,      setProfile]      = useState<UserProfile | null>(null);
-  const [leads,        setLeads]        = useState<Lead[]>([]);
-  const [loading,      setLoading]      = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [limitReached, setLimitReached] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [lastQuery,    setLastQuery]    = useState({ q: '', loc: '' });
-  const [filters,      setFilters]      = useState<SearchFilters>({
+  const [lastQuery, setLastQuery] = useState({ q: '', loc: '' });
+  const [filters, setFilters] = useState<SearchFilters>({
     hasWebsite: false, hasPhone: false, hasEmail: false,
     minRating: 0, sortBy: 'score',
   });
@@ -57,7 +57,7 @@ export default function Home() {
     fetch('/api/user/profile')
       .then((r) => r.ok ? r.json() : null)
       .then((p) => p && setProfile(p))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const router = useRouter();
@@ -125,14 +125,14 @@ export default function Home() {
     return leads
       .filter((l) => {
         if (filters.hasWebsite && !l.website) return false;
-        if (filters.hasPhone   && !l.phone)   return false;
-        if (filters.hasEmail   && !l.email)   return false;
+        if (filters.hasPhone && !l.phone) return false;
+        if (filters.hasEmail && !l.email) return false;
         // If minRating is > 0, hide leads with no rating or lower rating
         if (filters.minRating > 0 && (l.rating ?? 0) < filters.minRating) return false;
         return true;
       })
       .sort((a, b) => {
-        if (filters.sortBy === 'score')   return b.score - a.score;
+        if (filters.sortBy === 'score') return b.score - a.score;
         if (filters.sortBy === 'rating') {
           const rA = a.rating ?? -1; // Push undefined to bottom
           const rB = b.rating ?? -1;
@@ -143,7 +143,7 @@ export default function Home() {
           const vB = b.reviews ?? -1;
           return vB - vA;
         }
-        if (filters.sortBy === 'name')    return a.name.localeCompare(b.name);
+        if (filters.sortBy === 'name') return a.name.localeCompare(b.name);
         return 0;
       });
   }, [leads, filters]);
@@ -156,17 +156,17 @@ export default function Home() {
       l.name, l.category, l.address, l.phone ?? '', l.email ?? '',
       l.website ?? '', l.rating ?? '', l.reviews ?? '', l.score,
     ]);
-    const csv  = [headers, ...rows].map((r) => r.map(String).map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csv = [headers, ...rows].map((r) => r.map(String).map((v) => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `leads-${Date.now()}.csv` }).click();
   };
 
   // ── Derived state ──────────────────────────────────────────────────────────
-  const isPaid      = profile?.is_paid ?? false;
-  const searchesLeft = profile 
-    ? Math.max(0, (profile.searches_limit ?? 3) - (profile.searches_used ?? 0)) 
+  const isPaid = profile?.is_paid ?? false;
+  const searchesLeft = profile
+    ? Math.max(0, (profile.searches_limit ?? 3) - (profile.searches_used ?? 0))
     : null;
-  const lockedCount  = isPaid ? 0 : Math.max(0, processedLeads.length - FREE_CARDS);
+  const lockedCount = isPaid ? 0 : Math.max(0, processedLeads.length - FREE_CARDS);
 
   return (
     <main style={styles.container}>
@@ -177,7 +177,7 @@ export default function Home() {
           <div style={styles.logo}><Target size={22} color="#fff" /></div>
           <div>
             <h1 style={styles.h1}>LeadGeni</h1>
-            <p style={styles.subtitle}>Find businesses that need what you sell</p>
+            <p style={styles.subtitle}>Find businesses that need your service</p>
           </div>
         </div>
         <div style={styles.actions}>
@@ -218,7 +218,7 @@ export default function Home() {
 
       {/* Hero + search */}
       <section style={styles.heroSection}>
-        <h2 style={styles.heroTitle}>Find businesses that need what you sell</h2>
+        <h2 style={styles.heroTitle}>Find businesses that need your service</h2>
         <p style={styles.heroSub}>
           Powered by Google Maps. Real ratings, reviews, and contact data — ranked by fit for your service.
         </p>
@@ -312,31 +312,31 @@ export default function Home() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container:   { maxWidth: '1200px', margin: '0 auto', padding: '0 24px' },
-  header:      { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0 32px', flexWrap: 'wrap', gap: '12px' },
-  branding:    { display: 'flex', alignItems: 'center', gap: '14px' },
-  logo:        { backgroundColor: '#6366f1', width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  h1:          { fontSize: '22px', fontWeight: '700', color: 'var(--foreground)', margin: 0 },
-  subtitle:    { fontSize: '13px', color: 'var(--muted)', margin: 0 },
-  actions:     { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
-  badge:       { fontSize: '12px', fontWeight: '600', color: 'var(--secondary-foreground)', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', padding: '5px 12px', borderRadius: '100px' },
-  badgeWarn:   { color: '#dc2626', backgroundColor: '#fef2f2', borderColor: '#fecaca' },
-  badgePaid:   { fontSize: '12px', fontWeight: '700', color: '#059669', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '5px 12px', borderRadius: '100px' },
-  stat:        { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: 'var(--secondary-foreground)', backgroundColor: 'var(--card)', padding: '6px 14px', borderRadius: '100px', border: '1px solid var(--border)' },
-  signOutBtn:  { display: 'flex', alignItems: 'center', padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--muted)', cursor: 'pointer' },
+  container: { maxWidth: '1200px', margin: '0 auto', padding: '0 24px' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 0 32px', flexWrap: 'wrap', gap: '12px' },
+  branding: { display: 'flex', alignItems: 'center', gap: '14px' },
+  logo: { backgroundColor: '#6366f1', width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  h1: { fontSize: '22px', fontWeight: '700', color: 'var(--foreground)', margin: 0 },
+  subtitle: { fontSize: '13px', color: 'var(--muted)', margin: 0 },
+  actions: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' },
+  badge: { fontSize: '12px', fontWeight: '600', color: 'var(--secondary-foreground)', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', padding: '5px 12px', borderRadius: '100px' },
+  badgeWarn: { color: '#dc2626', backgroundColor: '#fef2f2', borderColor: '#fecaca' },
+  badgePaid: { fontSize: '12px', fontWeight: '700', color: '#059669', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', padding: '5px 12px', borderRadius: '100px' },
+  stat: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: '600', color: 'var(--secondary-foreground)', backgroundColor: 'var(--card)', padding: '6px 14px', borderRadius: '100px', border: '1px solid var(--border)' },
+  signOutBtn: { display: 'flex', alignItems: 'center', padding: '8px', borderRadius: '8px', border: '1px solid var(--border)', backgroundColor: 'var(--card)', color: 'var(--muted)', cursor: 'pointer' },
   heroSection: { textAlign: 'center', padding: '20px 0 56px', maxWidth: '860px', margin: '0 auto' },
-  heroTitle:   { fontSize: '2.4rem', fontWeight: '700', color: 'var(--foreground)', letterSpacing: '-0.02em', margin: '0 0 16px' },
-  heroSub:     { fontSize: '16px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 auto 32px', maxWidth: '580px' },
-  resultsBar:  { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' },
-  exportBtn:   { display: 'flex', alignItems: 'center', backgroundColor: 'var(--foreground)', color: 'var(--background)', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
-  grid:        { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px', marginBottom: '32px' },
-  limitBox:    { display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '20px 24px', marginBottom: '32px', flexWrap: 'wrap' },
-  upgradeBox:  { display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px 24px', marginBottom: '48px', flexWrap: 'wrap' },
+  heroTitle: { fontSize: '2.4rem', fontWeight: '700', color: 'var(--foreground)', letterSpacing: '-0.02em', margin: '0 0 16px' },
+  heroSub: { fontSize: '16px', color: 'var(--muted)', lineHeight: '1.6', margin: '0 auto 32px', maxWidth: '580px' },
+  resultsBar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' },
+  exportBtn: { display: 'flex', alignItems: 'center', backgroundColor: 'var(--foreground)', color: 'var(--background)', border: 'none', padding: '9px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '20px', marginBottom: '32px' },
+  limitBox: { display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '20px 24px', marginBottom: '32px', flexWrap: 'wrap' },
+  upgradeBox: { display: 'flex', alignItems: 'center', gap: '16px', backgroundColor: 'var(--secondary)', border: '1px solid var(--border)', borderRadius: '12px', padding: '20px 24px', marginBottom: '48px', flexWrap: 'wrap' },
   upgradeText: { flex: 1, fontSize: '14px', color: 'var(--secondary-foreground)', lineHeight: '1.5' },
   whatsappBtn: { backgroundColor: '#25d366', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', fontSize: '14px', cursor: 'pointer', flexShrink: 0 },
-  empty:       { textAlign: 'center', padding: '80px 0', color: 'var(--muted-foreground)' },
-  emptyTitle:  { fontSize: '20px', fontWeight: '600', color: 'var(--muted)', margin: '16px 0 8px' },
-  emptySub:    { fontSize: '14px', color: 'var(--muted-foreground)', maxWidth: '420px', margin: '0 auto', lineHeight: '1.6' },
-  errorBox:    { padding: '16px', backgroundColor: '#fef2f2', color: '#dc2626', borderRadius: '10px', border: '1px solid #fecaca', marginTop: '20px', fontSize: '14px' },
-  noResults:   { gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', color: 'var(--muted-foreground)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' },
+  empty: { textAlign: 'center', padding: '80px 0', color: 'var(--muted-foreground)' },
+  emptyTitle: { fontSize: '20px', fontWeight: '600', color: 'var(--muted)', margin: '16px 0 8px' },
+  emptySub: { fontSize: '14px', color: 'var(--muted-foreground)', maxWidth: '420px', margin: '0 auto', lineHeight: '1.6' },
+  errorBox: { padding: '16px', backgroundColor: '#fef2f2', color: '#dc2626', borderRadius: '10px', border: '1px solid #fecaca', marginTop: '20px', fontSize: '14px' },
+  noResults: { gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', color: 'var(--muted-foreground)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' },
 };
