@@ -12,19 +12,13 @@ import { ThemeToggle } from '@/ui/components/ThemeToggle';
 import { Lead, SearchFilters } from '@/core/types';
 import { createBrowserClient } from '@/lib/supabase.browser';
 import { Download, Target, TrendingUp, LayoutDashboard, Lock, MapPin, LogOut, Filter } from 'lucide-react';
+import { useTranslation } from '@/core/i18n/useTranslation';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const FREE_CARDS = 3;   // how many cards are fully visible on free tier
 const WHATSAPP_NUMBER = '01282048435'; // replace with your number e.g. 201234567890
 
-const LOADING_STEPS = [
-  { label: 'Searching Google Maps...', duration: 8_000 },
-  { label: 'Collecting business data...', duration: 10_000 },
-  { label: 'Scraping contact details...', duration: 8_000 },
-  { label: 'Enriching website data...', duration: 6_000 },
-  { label: 'Scoring leads...', duration: 3_000 },
-  { label: 'Generating outreach tips...', duration: 5_000 },
-];
+
 
 // ─── User profile shape ───────────────────────────────────────────────────────
 interface UserProfile {
@@ -38,6 +32,7 @@ interface UserProfile {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Home() {
+  const { t, isRTL } = useTranslation();
   const supabase = createBrowserClient();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -114,9 +109,7 @@ export default function Home() {
 
   // ── WhatsApp upgrade redirect ──────────────────────────────────────────────
   const handleUpgrade = () => {
-    const msg = encodeURIComponent(
-      `Hi, I want to upgrade my LeadGeni account.\nEmail: ${profile?.email ?? 'unknown'}`
-    );
+    const msg = encodeURIComponent(t.upgrade.whatsappMessage(profile?.email ?? 'unknown'));
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${msg}`, '_blank');
   };
 
@@ -176,11 +169,11 @@ export default function Home() {
         <div style={styles.branding}>
           <div style={styles.logo}><Target size={22} color="#fff" /></div>
           <div>
-            <h1 style={styles.h1}>LeadGeni</h1>
-            <p style={styles.subtitle}>Find businesses that need your service</p>
+            <h1 style={styles.h1}>{t.branding.name}</h1>
+            <p style={styles.subtitle}>{t.header.subtitle}</p>
           </div>
         </div>
-        <div style={styles.actions}>
+        <div style={{ ...styles.actions, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
           <ThemeToggle />
           <LanguageToggle />
 
@@ -192,24 +185,24 @@ export default function Home() {
               {!isPaid && (
                 <div style={{ ...styles.badge, ...(searchesLeft === 0 ? styles.badgeWarn : {}) }}>
                   {searchesLeft === 0
-                    ? '0 searches left'
-                    : `${searchesLeft} search${searchesLeft === 1 ? '' : 'es'} left`
+                    ? t.profile.zeroSearchesLeft
+                    : t.profile.freeSearchesLeft(searchesLeft ?? 0)
                   }
                 </div>
               )}
-              {isPaid && <div style={styles.badgePaid}>Pro</div>}
+              {isPaid && <div style={styles.badgePaid}>{t.profile.pro}</div>}
             </>
           )}
 
           {leads.length > 0 && (
-            <div style={styles.stat}><TrendingUp size={14} color="#10b981" /><span>{leads.length} leads</span></div>
+            <div style={styles.stat}><TrendingUp size={14} color="#10b981" /><span>{leads.length} {t.leads.found}</span></div>
           )}
 
           {/* Sign out */}
           {!profile ? (
             <div className="skeleton" style={{ width: 34, height: 34, borderRadius: 8 }} />
           ) : (
-            <button onClick={handleSignOut} style={styles.signOutBtn} title="Sign out">
+            <button onClick={handleSignOut} style={styles.signOutBtn} title={t.auth.signOut}>
               <LogOut size={15} />
             </button>
           )}
@@ -218,9 +211,9 @@ export default function Home() {
 
       {/* Hero + search */}
       <section style={styles.heroSection}>
-        <h2 style={styles.heroTitle}>Find businesses that need your service</h2>
+        <h2 style={styles.heroTitle}>{t.hero.title}</h2>
         <p style={styles.heroSub}>
-          Powered by Google Maps. Real ratings, reviews, and contact data — ranked by fit for your service.
+          {t.hero.description}
         </p>
         <SearchBar onSearch={handleSearch} isLoading={loading} />
       </section>
@@ -230,10 +223,10 @@ export default function Home() {
         <div style={styles.limitBox}>
           <Lock size={20} color="#6366f1" />
           <div style={styles.upgradeText}>
-            <strong>You've used all {profile?.searches_limit} free searches.</strong> Contact us on WhatsApp to upgrade and get unlimited access.
+            <strong>{t.upgrade.limitReachedTitle(profile?.searches_limit ?? 3)}</strong> {t.upgrade.limitReachedSub}
           </div>
           <button onClick={handleUpgrade} style={styles.whatsappBtn}>
-            Upgrade via WhatsApp
+            {t.upgrade.button}
           </button>
         </div>
       )}
@@ -245,7 +238,7 @@ export default function Home() {
             <Filters filters={filters} onChange={setFilters} />
             <button onClick={exportToCSV} style={styles.exportBtn}>
               {isPaid ? <Download size={14} /> : <Lock size={14} />}
-              <span style={{ marginLeft: '6px' }}>{isPaid ? 'Export CSV' : 'Export CSV'}</span>
+              <span style={{ marginLeft: '6px' }}>{isPaid ? t.leads.export : t.leads.exportUpgrade}</span>
             </button>
           </div>
 
@@ -278,10 +271,10 @@ export default function Home() {
             <div style={styles.upgradeBox}>
               <Lock size={20} color="#6366f1" />
               <div style={styles.upgradeText}>
-                <strong>{lockedCount} more leads are hidden.</strong> Pay once and get full access to all leads, contact info, and CSV export.
+                <strong>{t.upgrade.unlockTitle(lockedCount)}</strong> {t.upgrade.unlockDescription}
               </div>
               <button onClick={handleUpgrade} style={styles.whatsappBtn}>
-                Unlock via WhatsApp
+                {t.upgrade.unlockButton}
               </button>
             </div>
           )}
@@ -296,11 +289,11 @@ export default function Home() {
       {!loading && !limitReached && leads.length === 0 && !error && (
         <div style={styles.empty}>
           <LayoutDashboard size={44} color="#e2e8f0" />
-          <h3 style={styles.emptyTitle}>Ready to find clients?</h3>
+          <h3 style={styles.emptyTitle}>{t.emptyState.title}</h3>
           <p style={styles.emptySub}>
-            Enter what you sell and who to target.
+            {t.emptyState.description}
             {profile && !isPaid && searchesLeft !== null && (
-              <> You have <strong>{searchesLeft} free search{searchesLeft === 1 ? '' : 'es'}</strong> remaining.</>
+              <> {t.profile.freeSearchesLeft(searchesLeft)}</>
             )}
           </p>
         </div>
