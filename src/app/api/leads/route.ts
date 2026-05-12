@@ -139,6 +139,14 @@ export async function GET(request: NextRequest) {
   const hasPhone = parseBoolParam(searchParams, 'hasPhone');
   const hasEmail = parseBoolParam(searchParams, 'hasEmail');
 
+  const rawLat = searchParams.get('lat');
+  const rawLng = searchParams.get('lng');
+  const parsedLat = rawLat != null ? parseFloat(rawLat) : NaN;
+  const parsedLng = rawLng != null ? parseFloat(rawLng) : NaN;
+  const coords = (Number.isFinite(parsedLat) && Number.isFinite(parsedLng))
+    ? { lat: parsedLat, lng: parsedLng }
+    : undefined;
+
   if (!q || !loc) {
     return NextResponse.json(
       { error: 'Missing required params: q and loc.' },
@@ -213,7 +221,7 @@ export async function GET(request: NextRequest) {
     const [osmLeads, apifyLeads] = await Promise.all([
       cachedOsm
         ? Promise.resolve(cachedOsm)
-        : fetchRawLeads(q, loc)
+        : fetchRawLeads(q, loc, coords)
             .then(async (data) => { await osmRawCache.set(q, loc, data); return data; })
             .catch((err: Error) => { console.error('[route] OSM failed:', err.message); return []; }),
 

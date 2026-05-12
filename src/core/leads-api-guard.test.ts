@@ -80,6 +80,27 @@ describe('buildLeadsSearchURLSearchParams', () => {
     const qs = buildLeadsSearchURLSearchParams({ ...base, service: '' });
     expect(qs.get('service')).toBeNull();
   });
+
+  it('includes lat and lng when provided', () => {
+    const qs = buildLeadsSearchURLSearchParams({
+      q: 'gyms', loc: 'Maadi', service: '',
+      lat: 29.9537, lng: 31.2729,
+      hasWebsite: false, hasPhone: false, hasEmail: false,
+      minRating: 0, sortBy: 'score', page: 1, limit: 20,
+    });
+    expect(qs.get('lat')).toBe('29.9537');
+    expect(qs.get('lng')).toBe('31.2729');
+  });
+
+  it('omits lat and lng when not provided', () => {
+    const qs = buildLeadsSearchURLSearchParams({
+      q: 'gyms', loc: 'Cairo', service: '',
+      hasWebsite: false, hasPhone: false, hasEmail: false,
+      minRating: 0, sortBy: 'score', page: 1, limit: 20,
+    });
+    expect(qs.has('lat')).toBe(false);
+    expect(qs.has('lng')).toBe(false);
+  });
 });
 
 describe('parseLeadsApiResponse', () => {
