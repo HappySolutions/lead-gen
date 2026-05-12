@@ -32,7 +32,7 @@ interface UserProfile {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Home() {
-  const { t, isRTL } = useTranslation();
+  const { t, isRTL, language } = useTranslation();
   const supabase = createBrowserClient();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -74,7 +74,7 @@ export default function Home() {
     setLastQuery({ q: query, loc: location });
 
     try {
-      const url = `/api/leads?q=${encodeURIComponent(query)}&loc=${encodeURIComponent(location)}&service=${encodeURIComponent(service)}`;
+      const url = `/api/leads?q=${encodeURIComponent(query)}&loc=${encodeURIComponent(location)}&service=${encodeURIComponent(service)}&lang=${language}`;
       const resp = await fetch(url);
 
       if (resp.status === 403) {

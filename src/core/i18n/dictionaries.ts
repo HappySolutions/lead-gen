@@ -171,7 +171,7 @@ export const en: Dictionary = {
 
 export const ar: Dictionary = {
   branding: {
-    name: 'LeadGeni',
+    name: 'ليدجيني',
     tagline: 'اعثر على شركات تحتاج خدماتك',
   },
   header: {
