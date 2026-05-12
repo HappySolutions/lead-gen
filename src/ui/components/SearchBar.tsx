@@ -2,10 +2,13 @@
 
 import React, { useState } from 'react';
 import { Search, MapPin, Briefcase } from 'lucide-react';
+import { Autocomplete, useJsApiLoader } from '@react-google-maps/api';
 import { useTranslation } from '@/core/i18n/useTranslation';
 
+const GMAP_LIBRARIES: ('places')[] = ['places'];
+
 interface SearchBarProps {
-  onSearch: (query: string, location: string, service: string) => void;
+  onSearch: (query: string, location: string, service: string, lat?: number, lng?: number) => void;
   isLoading: boolean;
 }
 
@@ -14,10 +17,31 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
   const [query,    setQuery]    = useState('');
   const [location, setLocation] = useState('');
   const [service,  setService]  = useState('');
+  const [coords,   setCoords]   = useState<{ lat: number; lng: number } | null>(null);
+  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+    libraries: GMAP_LIBRARIES,
+  });
+
+  const onPlaceChanged = () => {
+    if (!autocomplete) return;
+    const place = autocomplete.getPlace();
+    if (place.formatted_address) {
+      setLocation(place.formatted_address);
+    }
+    if (place.geometry?.location) {
+      setCoords({
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+      });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (query && location) onSearch(query, location, service);
+    if (query && location) onSearch(query, location, service, coords?.lat, coords?.lng);
   };
 
   return (
@@ -54,14 +78,34 @@ export const SearchBar: React.FC<SearchBarProps> = ({ onSearch, isLoading }) => 
         <div style={styles.dividerV} />
         <div style={{ ...styles.inputGroup, flex: '0 0 200px' }}>
           <MapPin size={16} style={styles.icon} />
-          <input
-            type="text"
-            placeholder={t.search.locationPlaceholder}
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            style={styles.input}
-            required
-          />
+          {isLoaded ? (
+            <Autocomplete
+              onLoad={setAutocomplete}
+              onPlaceChanged={onPlaceChanged}
+              options={{
+                componentRestrictions: { country: 'eg' },
+                types: ['(regions)'],
+              }}
+            >
+              <input
+                type="text"
+                placeholder={t.search.locationPlaceholder}
+                value={location}
+                onChange={(e) => { setLocation(e.target.value); setCoords(null); }}
+                style={styles.input}
+                required
+              />
+            </Autocomplete>
+          ) : (
+            <input
+              type="text"
+              placeholder={t.search.locationPlaceholder}
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              style={styles.input}
+              required
+            />
+          )}
         </div>
         <button
           type="submit"

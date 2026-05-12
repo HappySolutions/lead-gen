@@ -43,6 +43,8 @@ export function buildLeadsSearchURLSearchParams(params: {
   q: string;
   loc: string;
   service: string;
+  lat?: number;
+  lng?: number;
   hasWebsite: boolean;
   hasPhone: boolean;
   hasEmail: boolean;
@@ -54,6 +56,10 @@ export function buildLeadsSearchURLSearchParams(params: {
   const qs = new URLSearchParams();
   qs.set('q', params.q);
   qs.set('loc', params.loc);
+  if (params.lat != null && params.lng != null) {
+    qs.set('lat', String(params.lat));
+    qs.set('lng', String(params.lng));
+  }
   if (params.service) qs.set('service', params.service);
   if (params.hasWebsite) qs.set('hasWebsite', '1');
   if (params.hasPhone) qs.set('hasPhone', '1');

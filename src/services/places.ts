@@ -192,18 +192,22 @@ function deduplicateByName(leads: RawLead[]): RawLead[] {
 
 /**
  * Fetches and normalises raw OSM business data.
+ * When `providedCoords` is supplied (from Google Places Autocomplete), Nominatim geocoding is skipped entirely.
  * Returns RawLead[] — no scores, no enrichment, no AI.
  */
-export async function fetchRawLeads(query: string, location: string): Promise<RawLead[]> {
-  // Run geocoding and tag resolution in parallel
-  const [coords, tags] = await Promise.all([
-    geocodeLocation(location),
+export async function fetchRawLeads(
+  query: string,
+  location: string,
+  providedCoords?: { lat: number; lng: number },
+): Promise<RawLead[]> {
+  const [resolvedCoords, tags] = await Promise.all([
+    providedCoords ? Promise.resolve(providedCoords) : geocodeLocation(location),
     resolveOSMTags(query),
   ]);
 
   console.log(`[places] Tags for "${query}":`, tags);
 
-  const oQuery   = buildOverpassQuery(tags, coords.lat, coords.lng);
+  const oQuery   = buildOverpassQuery(tags, resolvedCoords.lat, resolvedCoords.lng);
   const elements = await fetchFromOverpass(oQuery);
 
   const leads = elements
