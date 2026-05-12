@@ -188,7 +188,7 @@ export async function GET(request: NextRequest) {
   };
 
   // ── L1: Final results cache (cache HITs don't count as a new search) ────────
-  const cached = await finalResultsCache.get(q, loc, service);
+  const cached = await finalResultsCache.get(q, loc, service, lang);
   if (cached !== null) {
     const payload = buildLeadsPayload(
       cached,
@@ -296,7 +296,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // ── Persist full scored list to L1 (filters / sort / page applied on read) ─
-    await finalResultsCache.set(q, loc, service, leads);
+    await finalResultsCache.set(q, loc, service, lang, leads);
 
     const payload = buildLeadsPayload(
       leads,
