@@ -1,0 +1,205 @@
+/* Stacked “segmented capsule” — fields one per row (never cramped in one horizontal line) */
+
+.wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 36rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  position: relative;
+}
+
+.capsule {
+  --cap-bg: #ffffff;
+  --cap-border: #e2e8f0;
+  --cap-divider: #e2e8f0;
+  --cap-text: #0f172a;
+  --cap-placeholder: #64748b;
+  --cap-icon: #94a3b8;
+  --cap-icon-focus: #6366f1;
+  --cap-shadow: 0 25px 50px -12px rgb(15 23 42 / 0.12);
+
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  background: var(--cap-bg);
+  border-radius: 1.25rem;
+  border: 1px solid var(--cap-border);
+  padding: 0;
+  overflow: visible;
+  box-shadow: var(--cap-shadow);
+}
+
+/* Reserve vertical room so absolute dropdown does not cover the submit button */
+.capsuleOpen {
+  padding-bottom: min(45vh, 260px);
+}
+
+:global(html.dark) .capsule {
+  --cap-bg: #0f172a;
+  --cap-border: #1e293b;
+  --cap-divider: #334155;
+  --cap-text: #e2e8f0;
+  --cap-placeholder: #64748b;
+  --cap-icon: #64748b;
+  --cap-icon-focus: #818cf8;
+  --cap-shadow:
+    0 25px 50px -12px rgb(0 0 0 / 0.45),
+    0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+.capsule > .cell:first-child {
+  border-top-left-radius: 1.2rem;
+  border-top-right-radius: 1.2rem;
+}
+
+.cell {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  min-height: 3.25rem;
+  border-bottom: 1px solid var(--cap-divider);
+  flex: none;
+}
+
+.cell:focus-within {
+  background: rgb(99 102 241 / 0.04);
+}
+
+:global(html.dark) .cell:focus-within {
+  background: rgb(129 140 248 / 0.06);
+}
+
+.cellLocation {
+  position: relative;
+  border-bottom: none;
+  border-bottom-left-radius: 1.2rem;
+  border-bottom-right-radius: 1.2rem;
+}
+
+.icon {
+  flex-shrink: 0;
+  color: var(--cap-icon);
+  transition: color 0.15s ease;
+}
+
+.cell:focus-within .icon {
+  color: var(--cap-icon-focus);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--cap-text);
+}
+
+.input::placeholder {
+  color: var(--cap-placeholder);
+}
+
+.submit {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  align-self: stretch;
+  margin: 0;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: #fff;
+  background: #6366f1;
+  padding: 0.95rem 1.25rem;
+  border-radius: 0.875rem;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+  box-shadow: 0 0 18px rgb(99 102 241 / 0.35);
+}
+
+.submit:hover:not(:disabled) {
+  background: #4f46e5;
+  box-shadow: 0 0 22px rgb(99 102 241 / 0.45);
+}
+
+.submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+:global(html.dark) .submit {
+  background: #6366f1;
+}
+
+:global(html.dark) .submit:hover:not(:disabled) {
+  background: #4f46e5;
+}
+
+.dropdown {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 1;
+  margin-top: 6px;
+  list-style: none;
+  padding: 6px 0;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+}
+
+:global(html.dark) .dropdown {
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--foreground, #0f172a);
+  transition: background-color 0.1s ease;
+}
+
+.dropdownItem:hover,
+.dropdownItemActive {
+  background: var(--secondary, #f1f5f9);
+}
+
+:global(html.dark) .dropdownItemActive,
+:global(html.dark) .dropdownItem:hover {
+  background: #334155;
+}
+
+.dropdownText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .wrapper {
+    max-width: 42rem;
+  }
+}
