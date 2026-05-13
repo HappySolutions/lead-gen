@@ -14,11 +14,12 @@
  * Strategy:
  *   1. Run Apify search for the same query + location
  *   2. Normalise results into RawLead[]
- *   3. Merge with OSM results in places.ts — Apify data wins on conflicts
+ *   3. Merge with OSM results in mergeLeads() — Apify data wins on name match
  *
  * Server-side only — never imported by UI components.
  */
 
+import { normaliseLeadNameForDedupe } from '@/core/leadNameDedupe';
 import type { RawLead } from './places';
 
 const APIFY_API_KEY  = process.env.APIFY_API_KEY ?? '';
@@ -277,19 +278,17 @@ export function mergeLeads(osmLeads: RawLead[], apifyLeads: RawLead[]): RawLead[
   if (apifyLeads.length === 0) return osmLeads;
   if (osmLeads.length === 0)   return apifyLeads;
 
-  const normalise = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]/g, '').trim();
-
   // Index Apify leads by normalised name for O(1) lookup
   const apifyByName = new Map<string, RawLead>();
   for (const lead of apifyLeads) {
-    apifyByName.set(normalise(lead.name), lead);
+    apifyByName.set(normaliseLeadNameForDedupe(lead.name), lead);
   }
 
   const merged: RawLead[] = [];
   const usedApifyKeys = new Set<string>();
 
   for (const osmLead of osmLeads) {
-    const key = normalise(osmLead.name);
+    const key = normaliseLeadNameForDedupe(osmLead.name);
     const apifyMatch = apifyByName.get(key);
 
     if (apifyMatch) {
@@ -312,7 +311,7 @@ export function mergeLeads(osmLeads: RawLead[], apifyLeads: RawLead[]): RawLead[
 
   // Add Apify-only businesses (not found in OSM at all)
   for (const apifyLead of apifyLeads) {
-    const key = normalise(apifyLead.name);
+    const key = normaliseLeadNameForDedupe(apifyLead.name);
     if (!usedApifyKeys.has(key)) {
       merged.push(apifyLead);
     }

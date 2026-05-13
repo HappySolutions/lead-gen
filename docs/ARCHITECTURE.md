@@ -17,8 +17,9 @@ It combines local business discovery, enrichment, scoring, and outreach hints.
 2. Client calls `GET /api/leads` with query parameters aligned via `buildLeadsSearchURLSearchParams` (`src/core/leads-api-guard.ts`) so the URL and fetch string stay consistent.
 3. `src/app/api/leads/route.ts` validates session and usage limits.
 4. Services gather and enrich lead data:
-   - `src/services/places.ts`
-   - `src/services/apify.ts`
+   - `src/services/places.ts` — OSM path: geocode (Nominatim when needed) + Overpass; intra-OSM name dedupe uses `normaliseLeadNameForDedupe` from `src/core/leadNameDedupe.ts`.
+   - `src/services/apify.ts` — Google Maps via Apify; `mergeLeads()` combines OSM + Apify using the same name normalisation (Apify wins on field richness when names match).
+   - **Parallelism:** In `src/app/api/leads/route.ts`, after L2 cache reads, `fetchRawLeads` and `fetchApifyLeads` run inside one `Promise.all` so discovery wall time is approximately `max(T_osm, T_apify)`. Overpass and Apify are called from the server only (the browser sees a single `GET /api/leads`). Response may include `Server-Timing: discovery-osm;dur=…, discovery-apify;dur=…` for DevTools verification.
    - `src/services/enrichment.ts`
    - `src/services/ai.ts`
 5. Scoring logic from `src/core/scoring.ts` ranks opportunities.

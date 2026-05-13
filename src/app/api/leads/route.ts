@@ -59,6 +59,13 @@ function finiteNumberOrZero(n: unknown): number {
   return typeof n === 'number' && Number.isFinite(n) ? n : 0;
 }
 
+/** RFC 9211 Server-Timing: wall-clock ms for each raw-discovery branch (visible in DevTools → Network → response headers). */
+function discoveryServerTiming(osmMs: number, apifyMs: number): string {
+  const o = Math.max(0, Math.round(osmMs));
+  const a = Math.max(0, Math.round(apifyMs));
+  return `discovery-osm;dur=${o}, discovery-apify;dur=${a}`;
+}
+
 /** Same finite-or-zero semantics as `leadRatingStars`, for stable sort comparators. */
 function leadScoreSortValue(lead: Lead): number {
   return finiteNumberOrZero(lead.score);
@@ -218,19 +225,41 @@ export async function GET(request: NextRequest) {
       apifyRawCache.get<Awaited<ReturnType<typeof fetchApifyLeads>>>(q, loc),
     ]);
 
-    const [osmLeads, apifyLeads] = await Promise.all([
-      cachedOsm
-        ? Promise.resolve(cachedOsm)
-        : fetchRawLeads(q, loc, coords)
-            .then(async (data) => { await osmRawCache.set(q, loc, data); return data; })
-            .catch((err: Error) => { console.error('[route] OSM failed:', err.message); return []; }),
-
-      cachedApify
-        ? Promise.resolve(cachedApify)
-        : fetchApifyLeads(q, loc)
-            .then(async (data) => { await apifyRawCache.set(q, loc, data); return data; })
-            .catch((err: Error) => { console.error('[route] Apify failed:', err.message); return []; }),
+    // Raw discovery runs OSM (Nominatim + Overpass via fetchRawLeads) and Apify in parallel.
+    // Wall time ≈ max(T_osm, T_apify), not the sum — both branches start together below.
+    // Outbound calls to Overpass / Apify are server-side only (browser Network shows one /api/leads).
+    const [osmPack, apifyPack] = await Promise.all([
+      (async (): Promise<{ leads: Awaited<ReturnType<typeof fetchRawLeads>>; ms: number }> => {
+        const t0 = performance.now();
+        try {
+          const data = cachedOsm
+            ? cachedOsm
+            : await fetchRawLeads(q, loc, coords)
+                .then(async (d) => { await osmRawCache.set(q, loc, d); return d; });
+          return { leads: data, ms: performance.now() - t0 };
+        } catch (err: unknown) {
+          console.error('[route] OSM failed:', err instanceof Error ? err.message : String(err));
+          return { leads: [], ms: performance.now() - t0 };
+        }
+      })(),
+      (async (): Promise<{ leads: Awaited<ReturnType<typeof fetchApifyLeads>>; ms: number }> => {
+        const t0 = performance.now();
+        try {
+          const data = cachedApify
+            ? cachedApify
+            : await fetchApifyLeads(q, loc)
+                .then(async (d) => { await apifyRawCache.set(q, loc, d); return d; });
+          return { leads: data, ms: performance.now() - t0 };
+        } catch (err: unknown) {
+          console.error('[route] Apify failed:', err instanceof Error ? err.message : String(err));
+          return { leads: [], ms: performance.now() - t0 };
+        }
+      })(),
     ]);
+
+    const osmLeads = osmPack.leads;
+    const apifyLeads = apifyPack.leads;
+    const timingHeader = discoveryServerTiming(osmPack.ms, apifyPack.ms);
 
     const rawLeads = mergeLeads(osmLeads, apifyLeads);
 
@@ -249,7 +278,11 @@ export async function GET(request: NextRequest) {
         service,
       );
       return NextResponse.json(payload, {
-        headers: { ...commonHeaders, 'X-Cache': 'MISS' },
+        headers: {
+          ...commonHeaders,
+          'X-Cache': 'MISS',
+          'Server-Timing': timingHeader,
+        },
       });
     }
 
@@ -326,6 +359,7 @@ export async function GET(request: NextRequest) {
         ...commonHeaders,
         'X-Cache':          'MISS',
         'X-Searches-Used':  String(searchesUsedAfter),
+        'Server-Timing':    timingHeader,
       },
     });
 

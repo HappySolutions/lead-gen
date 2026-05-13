@@ -32,3 +32,14 @@ so the dev server can refresh the session cookie without crashing. If these are 
 - E2E specs and fixtures: `e2e/specs/`, `e2e/fixtures/`.
 
 See also [docs/EPIC2_LEADS_API.md](./EPIC2_LEADS_API.md) for the leads API contract under test.
+
+## Manual checks: parallel discovery (`/api/leads`)
+
+Automated coverage includes `mergeLeads` and name normalisation in Vitest (`src/services/apify.mergeLeads.test.ts`, `src/core/leadNameDedupe.test.ts`). For end-to-end behaviour in a browser:
+
+1. Sign in and run a search that hits `GET /api/leads?...`.
+2. Open **DevTools → Network**, select the `leads` request.
+3. **Timing:** Total request duration should reflect overlapping work (not strictly the sum of two full sequential external calls when both sources run cold). Compare `Server-Timing` response headers: `discovery-osm` and `discovery-apify` report each branch’s wall time in ms.
+4. **Duplicates:** Scan returned lead names in the JSON payload or on the page — cross-source duplicates should be merged (same business: one row, richer Apify fields when available).
+
+Unit tests do not call live Overpass/Apify; use the steps above against staging or local with real keys when validating latency.

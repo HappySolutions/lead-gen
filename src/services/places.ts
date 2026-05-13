@@ -10,6 +10,7 @@
  * All calls are server-side only — never imported by UI components.
  */
 
+import { normaliseLeadNameForDedupe } from '@/core/leadNameDedupe';
 import { resolveOSMTags } from './tagResolver';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
@@ -191,7 +192,7 @@ function normaliseUrl(raw: string): string {
 function deduplicateByName(leads: RawLead[]): RawLead[] {
   const seen = new Set<string>();
   return leads.filter((l) => {
-    const key = l.name.toLowerCase().trim();
+    const key = normaliseLeadNameForDedupe(l.name);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
