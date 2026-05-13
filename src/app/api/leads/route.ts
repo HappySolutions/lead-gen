@@ -139,6 +139,14 @@ export async function GET(request: NextRequest) {
   const hasPhone = parseBoolParam(searchParams, 'hasPhone');
   const hasEmail = parseBoolParam(searchParams, 'hasEmail');
 
+  const rawLat = searchParams.get('lat');
+  const rawLng = searchParams.get('lng');
+  const parsedLat = rawLat != null ? parseFloat(rawLat) : NaN;
+  const parsedLng = rawLng != null ? parseFloat(rawLng) : NaN;
+  const coords = (Number.isFinite(parsedLat) && Number.isFinite(parsedLng))
+    ? { lat: parsedLat, lng: parsedLng }
+    : undefined;
+
   if (!q || !loc) {
     return NextResponse.json(
       { error: 'Missing required params: q and loc.' },
@@ -180,7 +188,7 @@ export async function GET(request: NextRequest) {
   };
 
   // ── L1: Final results cache (cache HITs don't count as a new search) ────────
-  const cached = await finalResultsCache.get(q, loc, service);
+  const cached = await finalResultsCache.get(q, loc, service, lang);
   if (cached !== null) {
     const payload = buildLeadsPayload(
       cached,
@@ -213,7 +221,7 @@ export async function GET(request: NextRequest) {
     const [osmLeads, apifyLeads] = await Promise.all([
       cachedOsm
         ? Promise.resolve(cachedOsm)
-        : fetchRawLeads(q, loc)
+        : fetchRawLeads(q, loc, coords)
             .then(async (data) => { await osmRawCache.set(q, loc, data); return data; })
             .catch((err: Error) => { console.error('[route] OSM failed:', err.message); return []; }),
 
@@ -288,7 +296,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // ── Persist full scored list to L1 (filters / sort / page applied on read) ─
-    await finalResultsCache.set(q, loc, service, leads);
+    await finalResultsCache.set(q, loc, service, lang, leads);
 
     const payload = buildLeadsPayload(
       leads,

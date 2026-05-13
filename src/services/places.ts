@@ -52,23 +52,33 @@ export interface RawLead {
 async function geocodeLocation(location: string): Promise<{ lat: number; lng: number }> {
   const hasArabic = /[\u0600-\u06FF]/.test(location);
   const acceptLang = hasArabic ? 'ar' : 'en';
-  const url = `${NOMINATIM_URL}/search?q=${encodeURIComponent(location)}&format=json&limit=1&accept-language=${encodeURIComponent(acceptLang)}`;
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'LeadGeni-MVP/1.0 (contact@leadgeni.io)',
-      'Accept-Language': acceptLang,
-    },
-    cache: 'no-store',
-  });
+  const headers = {
+    'User-Agent': 'LeadGeni-MVP/1.0 (contact@leadgeni.io)',
+    'Accept-Language': acceptLang,
+  };
 
-  if (!res.ok) throw new Error(`Nominatim error ${res.status}`);
-
-  const data: NominatimResult[] = await res.json();
-  if (!data?.length) {
-    throw new Error(`Location not found: "${location}". Try a more specific city name.`);
+  // Attempt 1: original location restricted to Egypt
+  const url1 = `${NOMINATIM_URL}/search?q=${encodeURIComponent(location)}&format=json&limit=1&countrycodes=eg&addressdetails=1&accept-language=${encodeURIComponent(acceptLang)}`;
+  const res1 = await fetch(url1, { headers, cache: 'no-store' });
+  if (res1.ok) {
+    const data1: NominatimResult[] = await res1.json();
+    if (data1?.length) {
+      return { lat: parseFloat(data1[0].lat), lng: parseFloat(data1[0].lon) };
+    }
   }
 
-  return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  // Attempt 2: append ", Egypt" for broader context (no countrycodes restriction)
+  const fallbackQuery = `${location}, Egypt`;
+  const url2 = `${NOMINATIM_URL}/search?q=${encodeURIComponent(fallbackQuery)}&format=json&limit=1&addressdetails=1&accept-language=${encodeURIComponent(acceptLang)}`;
+  const res2 = await fetch(url2, { headers, cache: 'no-store' });
+  if (res2.ok) {
+    const data2: NominatimResult[] = await res2.json();
+    if (data2?.length) {
+      return { lat: parseFloat(data2[0].lat), lng: parseFloat(data2[0].lon) };
+    }
+  }
+
+  throw new Error(`Location not found: "${location}". Try a more specific city name.`);
 }
 
 // ─── Overpass query builder ───────────────────────────────────────────────────
@@ -192,18 +202,22 @@ function deduplicateByName(leads: RawLead[]): RawLead[] {
 
 /**
  * Fetches and normalises raw OSM business data.
+ * When `providedCoords` is supplied (from Google Places Autocomplete), Nominatim geocoding is skipped entirely.
  * Returns RawLead[] — no scores, no enrichment, no AI.
  */
-export async function fetchRawLeads(query: string, location: string): Promise<RawLead[]> {
-  // Run geocoding and tag resolution in parallel
-  const [coords, tags] = await Promise.all([
-    geocodeLocation(location),
+export async function fetchRawLeads(
+  query: string,
+  location: string,
+  providedCoords?: { lat: number; lng: number },
+): Promise<RawLead[]> {
+  const [resolvedCoords, tags] = await Promise.all([
+    providedCoords ? Promise.resolve(providedCoords) : geocodeLocation(location),
     resolveOSMTags(query),
   ]);
 
   console.log(`[places] Tags for "${query}":`, tags);
 
-  const oQuery   = buildOverpassQuery(tags, coords.lat, coords.lng);
+  const oQuery   = buildOverpassQuery(tags, resolvedCoords.lat, resolvedCoords.lng);
   const elements = await fetchFromOverpass(oQuery);
 
   const leads = elements

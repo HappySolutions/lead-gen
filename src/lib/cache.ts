@@ -29,8 +29,8 @@ const TTL = {
 
 // ── Key builders ─────────────────────────────────────────────────────────────
 const KEY = {
-  finalResults: (q: string, loc: string, service: string) =>
-    `leads:final::${norm(q)}::${norm(loc)}::${norm(service)}`,
+  finalResults: (q: string, loc: string, service: string, lang: string) =>
+    `leads:final::${norm(q)}::${norm(loc)}::${norm(service)}::${norm(lang)}`,
 
   apifyRaw: (q: string, loc: string) =>
     `leads:apify::${norm(q)}::${norm(loc)}`,
@@ -90,11 +90,11 @@ async function set<T>(key: string, value: T, ttlSeconds: number): Promise<void> 
 
 /** Final scored + AI-enriched lead list for a search query. */
 export const finalResultsCache = {
-  get: (q: string, loc: string, service: string) =>
-    get<Lead[]>(KEY.finalResults(q, loc, service)),
+  get: (q: string, loc: string, service: string, lang: string) =>
+    get<Lead[]>(KEY.finalResults(q, loc, service, lang)),
 
-  set: (q: string, loc: string, service: string, leads: Lead[]) =>
-    set(KEY.finalResults(q, loc, service), leads, TTL.finalResults),
+  set: (q: string, loc: string, service: string, lang: string, leads: Lead[]) =>
+    set(KEY.finalResults(q, loc, service, lang), leads, TTL.finalResults),
 };
 
 /** Raw Apify actor response (before merge / scoring). */

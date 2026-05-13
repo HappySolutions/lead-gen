@@ -109,7 +109,7 @@ export const LeadCard: React.FC<LeadCardProps> = ({ lead, locked = false, onView
       {/* Social channels */}
       {!locked && lead.socialLinks && Object.values(lead.socialLinks).some(Boolean) && (
         <div style={styles.channelsRow}>
-          <span style={styles.channelsLabel}>Social:</span>
+          <span style={styles.channelsLabel}>{t.details.social}:</span>
           {/* <div style={styles.channels}>
             {lead.socialLinks.linkedin  && <a href={lead.socialLinks.linkedin}  target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.linkedinPill }}><Linkedin  size={11} /> LinkedIn</a>}
             {lead.socialLinks.instagram && <a href={lead.socialLinks.instagram} target="_blank" rel="noopener noreferrer" style={{ ...styles.pill, ...styles.instagramPill }}><Instagram size={11} /> Instagram</a>}

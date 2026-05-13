@@ -80,6 +80,8 @@ export default function HomeContent() {
   const hydrateWithoutUrlPushRef = useRef(false);
   const searchSeqRef = useRef(0);
   const searchAbortRef = useRef<AbortController | null>(null);
+  /** Lat/lng from Google Places Autocomplete (or URL hydration). Ref to keep performSearch stable. */
+  const searchCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // ── Load user profile on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -95,6 +97,8 @@ export default function HomeContent() {
     q: string;
     loc: string;
     service: string;
+    lat?: number;
+    lng?: number;
     hasWebsite: boolean;
     hasPhone: boolean;
     hasEmail: boolean;
@@ -147,6 +151,8 @@ export default function HomeContent() {
         q: query,
         loc: location,
         service,
+        lat: searchCoordsRef.current?.lat,
+        lng: searchCoordsRef.current?.lng,
         hasWebsite: nextFilters.hasWebsite,
         hasPhone: nextFilters.hasPhone,
         hasEmail: nextFilters.hasEmail,
@@ -161,6 +167,8 @@ export default function HomeContent() {
       q: query,
       loc: location,
       service,
+      lat: searchCoordsRef.current?.lat,
+      lng: searchCoordsRef.current?.lng,
       hasWebsite: nextFilters.hasWebsite,
       hasPhone: nextFilters.hasPhone,
       hasEmail: nextFilters.hasEmail,
@@ -237,7 +245,8 @@ export default function HomeContent() {
   }, []);
 
   // ── Search submit entry (state only; fetch runs in the search useEffect) ───
-  const handleSearch = (query: string, location: string, service: string) => {
+  const handleSearch = (query: string, location: string, service: string, lat?: number, lng?: number) => {
+    searchCoordsRef.current = (lat != null && lng != null) ? { lat, lng } : null;
     setLastQuery({ q: query, loc: location, service });
     setPagination((p) => ({ ...p, page: 1 }));
   };
@@ -262,6 +271,13 @@ export default function HomeContent() {
     const q = searchParams.get('q')?.trim() ?? '';
     const loc = searchParams.get('loc')?.trim() ?? '';
     const service = searchParams.get('service')?.trim() ?? '';
+    const rawLat = searchParams.get('lat');
+    const rawLng = searchParams.get('lng');
+    const parsedLat = rawLat != null ? parseFloat(rawLat) : NaN;
+    const parsedLng = rawLng != null ? parseFloat(rawLng) : NaN;
+    searchCoordsRef.current = (Number.isFinite(parsedLat) && Number.isFinite(parsedLng))
+      ? { lat: parsedLat, lng: parsedLng }
+      : null;
     const hasWebsite = parseBoolFromSearchParam(searchParams.get('hasWebsite'));
     const hasPhone = parseBoolFromSearchParam(searchParams.get('hasPhone'));
     const hasEmail = parseBoolFromSearchParam(searchParams.get('hasEmail'));
